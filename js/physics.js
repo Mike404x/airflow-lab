@@ -146,6 +146,12 @@
         losses: [orifice('PCIe vents', pcieArea * 1e-6, rho)], filtered: false,
       });
     }
+    if (layout.grille) {
+      elements.push({
+        id: 'grille', label: `${data().PANELS[layout.grille.panel].name} grille`, kind: 'vent', dir: 1, fans: [],
+        losses: [orifice('Grille', layout.grille.areaMm2 * 1e-6, rho)], filtered: false,
+      });
+    }
     elements.push({
       id: 'leak', label: 'Panel gaps / leakage', kind: 'vent', dir: 1, fans: [],
       losses: [orifice('Gaps', P.leakageAreaMm2 * 1e-6, rho)], filtered: false,

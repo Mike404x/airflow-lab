@@ -189,7 +189,8 @@
       else ctx.setLineDash([]);
     }
 
-    drawWalls(state) {
+    drawWalls(state, fmtFlow) {
+      const fmtFlowForWalls = (el) => (fmtFlow ? fmtFlow(Math.abs(el.q)) : '');
       const ctx = this.ctx;
       const c = state.config.case;
       const P = c.panels;
@@ -201,6 +202,37 @@
         ctx.stroke();
       };
       seg(P.top.type, 0, 0, c.depth, 0);
+      const g = state.layout.grille;
+      if (g) {
+        const top = g.panel === 'top';
+        const line = () => {
+          ctx.beginPath();
+          if (top) { ctx.moveTo(this.X(g.from), this.Y(0)); ctx.lineTo(this.X(g.to), this.Y(0)); } else { ctx.moveTo(this.X(0), this.Y(g.from)); ctx.lineTo(this.X(0), this.Y(g.to)); }
+          ctx.stroke();
+        };
+        ctx.save();
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = COLORS.background;
+        line();
+        ctx.strokeStyle = 'rgba(160,175,195,0.95)';
+        ctx.setLineDash([2, 3]);
+        line();
+        ctx.restore();
+        const el = state.air.elements.find((e) => e.id === 'grille');
+        if (el && Math.abs(el.q) > 1e-5) {
+          const mid = (g.from + g.to) / 2;
+          const ix = top ? this.X(mid) : this.X(0) + 18;
+          const iy = top ? this.Y(0) + 18 : this.Y(mid);
+          const ox = top ? this.X(mid) : this.X(0) - 44;
+          const oy = top ? this.Y(0) - 44 : this.Y(mid);
+          if (el.inflow > 0) this.drawArrow(ox, oy, ix, iy, 'rgba(160,175,195,0.85)', 1.5);
+          else this.drawArrow(ix, iy, ox, oy, 'rgba(160,175,195,0.85)', 1.5);
+          ctx.font = '11px Inter, Segoe UI, sans-serif';
+          ctx.fillStyle = COLORS.dim;
+          ctx.textAlign = top ? 'center' : 'right';
+          ctx.fillText(`grille ${fmtFlowForWalls(el)}`, top ? ox : ox - 4, top ? oy - 6 : oy + 16);
+        }
+      }
       seg(P.front.type, c.depth, 0, c.depth, c.height);
       seg(P.rear.type, 0, 0, 0, c.height);
       seg(c.shroud ? 'solid' : P.bottom.type, 0, c.height, c.depth, c.height);
@@ -528,7 +560,7 @@
       this.drawField(state);
       this.drawComponents(state);
       this.drawParticles(state);
-      this.drawWalls(state);
+      this.drawWalls(state, fmtFlow);
       this.drawSlots(state, fmtFlow);
       this.drawTags(state);
     }

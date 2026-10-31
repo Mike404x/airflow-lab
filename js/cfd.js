@@ -173,6 +173,16 @@
       const pcieRows = this.spanY(comps.pcie.top, comps.pcie.bottom);
       if (config.case.pcieVented) for (let j = pcieRows[0]; j <= pcieRows[1]; j++) rearOpen.push(j);
       if (gpuCooler.type !== 'blower' || !config.case.pcieVented) for (let j = sinkJ0; j <= sinkJ1; j++) rearOpen.push(j);
+      if (layout.grille) {
+        const g = layout.grille;
+        if (g.panel === 'top') {
+          const [i0, i1] = this.spanX(g.from, g.to);
+          for (let i = i0; i <= i1; i++) if (type[this.id(i, 1)] === FLUID) type[this.id(i, 0)] = OPEN;
+        } else {
+          const [j0, j1] = this.spanY(g.from, g.to);
+          for (let j = j0; j <= j1; j++) if (type[this.id(1, j)] === FLUID) type[this.id(0, j)] = OPEN;
+        }
+      }
       const leakRow = this.cellY(layout.shroudTop - 12);
       rearOpen.push(leakRow, leakRow - 1);
       for (const j of rearOpen) {

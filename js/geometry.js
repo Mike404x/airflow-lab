@@ -226,13 +226,21 @@
     return issues;
   }
 
+  function grilleOf(config) {
+    const g = config.case.grille;
+    if (!g || !(g.areaMm2 > 0)) return null;
+    const c = config.case;
+    if (g.panel === 'rear') return { panel: 'rear', from: c.height * 0.05, to: c.height * 0.4, areaMm2: g.areaMm2 };
+    return { panel: 'top', from: c.depth * 0.12, to: c.depth * 0.72, areaMm2: g.areaMm2 };
+  }
+
   function layout(config) {
     const slots = buildSlots(config);
     const components = buildComponents(config, slots);
     const issues = clearanceIssues(config, slots, components);
     const radIds = new Set(components.radiator ? components.radiator.slots.map((s) => s.id) : []);
     for (const s of slots) s.radiator = radIds.has(s.id);
-    return { slots, components, issues, shroudTop: shroudTop(config) };
+    return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config) };
   }
 
   AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf };

@@ -34,6 +34,15 @@
     { id: 'cm-sickleflow-120', name: 'Cooler Master SickleFlow 120', size: 120, rpm: 1800, cfm: 62, mmh2o: 2.5, approx: true },
     { id: 'scythe-kaze-flex2-120', name: 'Scythe Kaze Flex II 120', size: 120, rpm: 1500, cfm: 51, mmh2o: 1.4, approx: true },
     { id: 'nzxt-f120p', name: 'NZXT F120P (Kraken bundled)', size: 120, rpm: 2000, cfm: 73, mmh2o: 2.9, approx: true },
+    { id: 'corsair-sp120-elite', name: 'Corsair SP120 RGB Elite (bundled)', size: 120, rpm: 1500, cfm: 47.7, mmh2o: 1.68 },
+    { id: 'corsair-airguide-140', name: 'Corsair AirGuide 140 (bundled)', size: 140, rpm: 1100, cfm: 65, mmh2o: 1.2, approx: true },
+    { id: 'fractal-dynamic-x2-18', name: 'Fractal Dynamic X2 GP-18 (Torrent bundled)', size: 180, rpm: 800, cfm: 100, mmh2o: 0.9, approx: true },
+    { id: 'nzxt-f120q', name: 'NZXT F120Q (bundled)', size: 120, rpm: 1500, cfm: 55, mmh2o: 1.4, approx: true },
+    { id: 'nzxt-f140q', name: 'NZXT F140Q (bundled)', size: 140, rpm: 1200, cfm: 68, mmh2o: 1.3, approx: true },
+    { id: 'bequiet-light-wings-140', name: 'be quiet! Light Wings 140 (bundled)', size: 140, rpm: 1100, cfm: 61, mmh2o: 1.0, approx: true },
+    { id: 'montech-ax120', name: 'Montech AX120 (bundled)', size: 120, rpm: 1500, cfm: 52, mmh2o: 1.5, approx: true },
+    { id: 'deepcool-bundled-140', name: 'DeepCool 140 mm (bundled)', size: 140, rpm: 1200, cfm: 66, mmh2o: 1.3, approx: true },
+    { id: 'lianli-bundled-120', name: 'Lian Li 120 mm (bundled)', size: 120, rpm: 1500, cfm: 52, mmh2o: 1.5, approx: true },
   ];
 
   const CPUS = [
@@ -206,7 +215,7 @@
       stock: [['front-0', 'intake', 'corsair-airguide-120'], ['rear-0', 'exhaust', 'corsair-airguide-120']],
     },
     {
-      id: 'corsair-3000d', group: 'Corsair', name: 'Corsair 3000D Airflow', height: 466, depth: 462, width: 230, shroud: true, frontSlots: 3, maxGpu: 360, maxCooler: 170,
+      id: 'corsair-3000d', group: 'Corsair', name: 'Corsair 3000D Airflow', height: 466, depth: 462, width: 230, shroud: true, frontSlots: 3, maxGpu: 360, maxCooler: 170, stockApprox: true,
       panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
       support: { front: { 120: 3, 140: 2 }, top: { 120: 2, 140: 2 }, rear: { 120: 1 } },
       stock: [['front-0', 'intake', 'corsair-airguide-120'], ['front-1', 'intake', 'corsair-airguide-120']],
@@ -248,28 +257,142 @@
       stock: [['front-0', 'intake', 'fractal-aspect-12'], ['front-1', 'intake', 'fractal-aspect-12'], ['front-2', 'intake', 'fractal-aspect-12'], ['rear-0', 'exhaust', 'fractal-aspect-12']],
     },
     {
-      id: 'montech-air903-max', group: 'Other brands', name: 'Montech AIR 903 MAX', height: 487, depth: 493, width: 230, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 180,
+      id: 'montech-air903-max', group: 'Montech', name: 'Montech AIR 903 MAX', height: 487, depth: 493, width: 230, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 180,
       panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
       support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 2 }, rear: { 120: 1, 140: 1 } },
       stock: [['front-0', 'intake', 'montech-ax140'], ['front-1', 'intake', 'montech-ax140'], ['front-2', 'intake', 'montech-ax140'], ['rear-0', 'exhaust', 'montech-ax140']],
     },
     {
-      id: 'phanteks-g360a', group: 'Other brands', name: 'Phanteks Eclipse G360A', height: 450, depth: 465, width: 220, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 162,
+      id: 'phanteks-g360a', group: 'Phanteks', name: 'Phanteks Eclipse G360A', height: 450, depth: 465, width: 220, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 162,
       panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
       support: { front: { 120: 3, 140: 2 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
       stock: [['front-0', 'intake', 'phanteks-m25-120'], ['front-1', 'intake', 'phanteks-m25-120'], ['front-2', 'intake', 'phanteks-m25-120']],
     },
     {
-      id: 'bequiet-500dx', group: 'Other brands', name: 'be quiet! Pure Base 500DX', height: 463, depth: 450, width: 232, shroud: true, frontSlots: 3, maxGpu: 369, maxCooler: 190,
+      id: 'bequiet-500dx', group: 'be quiet!', name: 'be quiet! Pure Base 500DX', height: 463, depth: 450, width: 232, shroud: true, frontSlots: 3, maxGpu: 369, maxCooler: 190, stockApprox: true,
       panels: { front: p('perforated', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
       support: { front: { 120: 3, 140: 3 }, top: { 120: 2, 140: 2 }, rear: { 120: 1, 140: 1 } },
       stock: [['front-0', 'intake', 'bequiet-pure-wings2-140'], ['top-0', 'exhaust', 'bequiet-pure-wings2-140'], ['rear-0', 'exhaust', 'bequiet-pure-wings2-140']],
     },
     {
-      id: 'nr200p', group: 'Other brands', name: 'Cooler Master NR200P (Mini-ITX)', height: 292, depth: 376, width: 185, shroud: false, frontSlots: 0, maxGpu: 330, maxCooler: 155,
+      id: 'nr200p', group: 'Cooler Master', name: 'Cooler Master NR200P (Mini-ITX)', height: 292, depth: 376, width: 185, shroud: false, frontSlots: 0, maxGpu: 330, maxCooler: 155,
       panels: { front: p('solid', 120), top: p('perforated', 120), rear: p('perforated', 92), bottom: p('perforated', 120), side: p('solid', 120) },
       support: { top: { 120: 2, 140: 2 }, bottom: { 120: 2, 140: 2 }, rear: { 92: 1 } },
       stock: [['bottom-0', 'intake', 'cm-sickleflow-120'], ['bottom-1', 'intake', 'cm-sickleflow-120']],
+    },
+    {
+      id: 'corsair-4000x', group: 'Corsair', name: 'Corsair iCUE 4000X RGB (glass front)', height: 466, depth: 453, width: 230, shroud: true, frontSlots: 3, maxGpu: 360, maxCooler: 170,
+      panels: { front: p('restricted', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'corsair-sp120-elite'], ['front-1', 'intake', 'corsair-sp120-elite'], ['front-2', 'intake', 'corsair-sp120-elite']],
+    },
+    {
+      id: 'corsair-5000x', group: 'Corsair', name: 'Corsair iCUE 5000X RGB (glass front)', height: 520, depth: 520, width: 245, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 170,
+      panels: { front: p('restricted', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'corsair-sp120-elite'], ['front-1', 'intake', 'corsair-sp120-elite'], ['front-2', 'intake', 'corsair-sp120-elite']],
+    },
+    {
+      id: 'corsair-7000d', group: 'Corsair', name: 'Corsair 7000D Airflow (full tower)', height: 600, depth: 550, width: 248, shroud: true, frontSlots: 3, maxGpu: 450, maxCooler: 190, stockApprox: true,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'corsair-airguide-140'], ['front-1', 'intake', 'corsair-airguide-140'], ['rear-0', 'exhaust', 'corsair-airguide-140']],
+    },
+    {
+      id: 'fractal-meshify2', group: 'Fractal Design', name: 'Fractal Design Meshify 2', height: 474, depth: 542, width: 240, shroud: true, frontSlots: 3, maxGpu: 467, maxCooler: 185,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'fractal-dynamic-x2-14'], ['front-1', 'intake', 'fractal-dynamic-x2-14'], ['rear-0', 'exhaust', 'fractal-dynamic-x2-14']],
+    },
+    {
+      id: 'fractal-define7', group: 'Fractal Design', name: 'Fractal Design Define 7 (solid front)', height: 475, depth: 547, width: 240, shroud: true, frontSlots: 3, maxGpu: 467, maxCooler: 185,
+      panels: { front: p('restricted', 140), top: p('solid', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'fractal-dynamic-x2-14'], ['front-1', 'intake', 'fractal-dynamic-x2-14'], ['rear-0', 'exhaust', 'fractal-dynamic-x2-14']],
+    },
+    {
+      id: 'fractal-north-xl', group: 'Fractal Design', name: 'Fractal Design North XL', height: 509, depth: 503, width: 240, shroud: true, frontSlots: 3, maxGpu: 413, maxCooler: 185, stockApprox: true,
+      panels: { front: p('perforated', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'fractal-aspect-14'], ['front-1', 'intake', 'fractal-aspect-14'], ['front-2', 'intake', 'fractal-aspect-14'], ['rear-0', 'exhaust', 'fractal-aspect-14']],
+    },
+    {
+      id: 'fractal-torrent', group: 'Fractal Design', name: 'Fractal Design Torrent', height: 530, depth: 544, width: 242, shroud: false, frontSlots: 2, maxGpu: 461, maxCooler: 188, grille: { panel: 'top', areaMm2: 35000 },
+      panels: { front: p('mesh', 180), top: p('solid', 140), rear: p('perforated', 140), bottom: p('mesh', 140), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3, 180: 2 }, bottom: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'fractal-dynamic-x2-18'], ['front-1', 'intake', 'fractal-dynamic-x2-18'], ['bottom-0', 'intake', 'fractal-dynamic-x2-14'], ['bottom-1', 'intake', 'fractal-dynamic-x2-14'], ['bottom-2', 'intake', 'fractal-dynamic-x2-14']],
+    },
+    {
+      id: 'nzxt-h5-flow', group: 'NZXT', name: 'NZXT H5 Flow (2024)', height: 464, depth: 435, width: 227, shroud: true, frontSlots: 3, maxGpu: 365, maxCooler: 165, stockApprox: true,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 2, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'nzxt-f120q'], ['front-1', 'intake', 'nzxt-f120q'], ['rear-0', 'exhaust', 'nzxt-f120q']],
+    },
+    {
+      id: 'nzxt-h7-flow', group: 'NZXT', name: 'NZXT H7 Flow (2024)', height: 505, depth: 505, width: 230, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 185, stockApprox: true,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'nzxt-f140q'], ['front-1', 'intake', 'nzxt-f140q'], ['front-2', 'intake', 'nzxt-f140q'], ['rear-0', 'exhaust', 'nzxt-f120q']],
+    },
+    {
+      id: 'phanteks-xt-pro-ultra', group: 'Phanteks', name: 'Phanteks XT Pro Ultra', height: 485, depth: 470, width: 230, shroud: true, frontSlots: 3, maxGpu: 415, maxCooler: 184, stockApprox: true,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'phanteks-m25-120'], ['front-1', 'intake', 'phanteks-m25-120'], ['front-2', 'intake', 'phanteks-m25-120'], ['rear-0', 'exhaust', 'phanteks-m25-120']],
+    },
+    {
+      id: 'bequiet-shadow-base-800fx', group: 'be quiet!', name: 'be quiet! Shadow Base 800 FX', height: 512, depth: 527, width: 240, shroud: true, frontSlots: 3, maxGpu: 450, maxCooler: 180, stockApprox: true,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'bequiet-light-wings-140'], ['front-1', 'intake', 'bequiet-light-wings-140'], ['front-2', 'intake', 'bequiet-light-wings-140'], ['rear-0', 'exhaust', 'bequiet-light-wings-140']],
+    },
+    {
+      id: 'bequiet-silent-base-802', group: 'be quiet!', name: 'be quiet! Silent Base 802 (mesh front)', height: 553, depth: 539, width: 281, shroud: true, frontSlots: 3, maxGpu: 432, maxCooler: 185, stockApprox: true,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 140), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 3 }, rear: { 120: 1, 140: 1 } },
+      stock: [['front-0', 'intake', 'bequiet-pure-wings2-140'], ['front-1', 'intake', 'bequiet-pure-wings2-140'], ['rear-0', 'exhaust', 'bequiet-pure-wings2-140']],
+    },
+    {
+      id: 'cm-td500-mesh-v2', group: 'Cooler Master', name: 'Cooler Master MasterBox TD500 Mesh V2', height: 469, depth: 493, width: 217, shroud: true, frontSlots: 3, maxGpu: 410, maxCooler: 165,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'cm-sickleflow-120'], ['front-1', 'intake', 'cm-sickleflow-120'], ['front-2', 'intake', 'cm-sickleflow-120']],
+    },
+    {
+      id: 'cm-q300l', group: 'Cooler Master', name: 'Cooler Master MasterBox Q300L (Micro-ATX)', height: 381, depth: 387, width: 230, shroud: false, frontSlots: 2, maxGpu: 360, maxCooler: 159,
+      panels: { front: p('perforated', 120), top: p('perforated', 120), rear: p('perforated', 120), bottom: p('perforated', 120), side: p('solid', 120) },
+      support: { front: { 120: 2, 140: 2 }, top: { 120: 2 }, rear: { 120: 1 } },
+      stock: [['rear-0', 'exhaust', 'cm-sickleflow-120']],
+    },
+    {
+      id: 'montech-air100', group: 'Montech', name: 'Montech AIR 100 ARGB (Micro-ATX)', height: 426, depth: 405, width: 210, shroud: true, frontSlots: 2, maxGpu: 330, maxCooler: 161, stockApprox: true,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 2, 140: 2 }, top: { 120: 2, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'montech-ax120'], ['front-1', 'intake', 'montech-ax120'], ['top-0', 'exhaust', 'montech-ax120'], ['rear-0', 'exhaust', 'montech-ax120']],
+    },
+    {
+      id: 'deepcool-ch560', group: 'DeepCool', name: 'DeepCool CH560', height: 478, depth: 467, width: 230, shroud: true, frontSlots: 3, maxGpu: 380, maxCooler: 175, stockApprox: true,
+      panels: { front: p('mesh', 140), top: p('mesh', 140), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'deepcool-bundled-140'], ['front-1', 'intake', 'deepcool-bundled-140'], ['front-2', 'intake', 'deepcool-bundled-140'], ['rear-0', 'exhaust', 'deepcool-fc120']],
+    },
+    {
+      id: 'deepcool-cc560', group: 'DeepCool', name: 'DeepCool CC560 V2', height: 477, depth: 416, width: 210, shroud: true, frontSlots: 3, maxGpu: 370, maxCooler: 163, stockApprox: true,
+      panels: { front: p('perforated', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 2, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'deepcool-fc120'], ['front-1', 'intake', 'deepcool-fc120'], ['front-2', 'intake', 'deepcool-fc120'], ['rear-0', 'exhaust', 'deepcool-fc120']],
+    },
+    {
+      id: 'lianli-lancool-2-mesh', group: 'Lian Li', name: 'Lian Li Lancool II Mesh', height: 494, depth: 478, width: 229, shroud: true, frontSlots: 3, maxGpu: 384, maxCooler: 176, stockApprox: true,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 3 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['front-0', 'intake', 'lianli-bundled-120'], ['front-1', 'intake', 'lianli-bundled-120'], ['rear-0', 'exhaust', 'lianli-bundled-120']],
+    },
+    {
+      id: 'jonsbo-d41-mesh', group: 'Jonsbo', name: 'Jonsbo D41 Mesh', height: 450, depth: 430, width: 210, shroud: true, frontSlots: 3, maxGpu: 400, maxCooler: 168, stockApprox: true,
+      panels: { front: p('mesh', 120), top: p('mesh', 120), rear: p('perforated', 120), bottom: p('mesh', 120), side: p('solid', 120) },
+      support: { front: { 120: 3, 140: 2 }, top: { 120: 3, 140: 2 }, rear: { 120: 1 } },
+      stock: [['rear-0', 'exhaust', 'deepcool-fc120']],
     },
   ];
 
@@ -383,7 +506,7 @@
     const c = config.case;
     Object.assign(c, {
       model: id, name: e.name, height: e.height, depth: e.depth, width: e.width, shroud: e.shroud,
-      frontSlots: e.frontSlots, maxGpu: e.maxGpu, maxCooler: e.maxCooler,
+      frontSlots: e.frontSlots, maxGpu: e.maxGpu, maxCooler: e.maxCooler, grille: e.grille ? Object.assign({}, e.grille) : null,
       panels: JSON.parse(JSON.stringify(e.panels)), support: JSON.parse(JSON.stringify(e.support)),
     });
     config.slots = {};
@@ -416,6 +539,7 @@
 
   D.FANS.push(...EXTRA_FANS.filter((f) => !D.FANS.some((x) => x.id === f.id)));
   if (!D.PANELS.front.sizes.includes(160)) D.PANELS.front.sizes.splice(2, 0, 160);
+  if (!D.PANELS.front.sizes.includes(180)) D.PANELS.front.sizes.splice(3, 0, 180);
   if (!D.RADIATOR_THICKNESS.includes(32)) D.RADIATOR_THICKNESS.splice(2, 0, 32);
 
   AF.catalog = {

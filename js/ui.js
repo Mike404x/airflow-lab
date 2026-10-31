@@ -175,6 +175,7 @@
       cfg.case.maxGpu = null;
       cfg.case.maxCooler = null;
       cfg.case.support = null;
+      cfg.case.grille = null;
     });
     const panelRows = Object.keys(D.PANELS).map((key) => h('tr', {},
       h('td', {}, D.PANELS[key].name),
@@ -195,7 +196,7 @@
       field('Case model', picker(groupOptions(C.CASES), c.model, (v) => {
         if (v === CUSTOM) editDims(() => {}); else update((cfg) => C.applyCase(cfg, v));
       }, 'Custom / generic case')),
-      caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed`) : null,
+      caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed${caseEntry.stockApprox ? ' (bundled fan set is approximate, check your case)' : ''}`) : null,
       details('Dimensions & panels', !caseEntry,
         field('Name', text(c.name, (v) => update((cfg) => { cfg.case.name = v; }))),
         h('div', { class: 'grid3' },
