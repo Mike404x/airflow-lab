@@ -20,6 +20,13 @@
   }
 
   function migrate(parsed) {
+    if (parsed && parsed.case && parsed.case.motherboard && (parsed.version || 1) < 2) {
+      const m = parsed.case.motherboard;
+      const fresh = AF.data.motherboardConfig(m.model);
+      m.slot1Y = fresh.slot1Y;
+      m.socketY = fresh.socketY;
+      parsed.version = 2;
+    }
     if (parsed && parsed.case && !parsed.case.motherboard) {
       parsed.case.motherboard = AF.data.motherboardConfig(AF.data.LEGACY_FORM_FACTORS[parsed.case.formFactor] || 'atx-slot2');
       delete parsed.case.formFactor;

@@ -284,7 +284,41 @@ function catalogTests() {
   check('NH-D15 cools better than Wraith Stealth', solve(better).thermal.cpu.temp < solve(worse).thermal.cpu.temp);
 }
 
+function placementTests() {
+  const C = AF.catalog;
+  const base = () => clone(AF.data.PRESETS[0].config);
+  const towers = C.COOLERS.filter((k) => k.type.startsWith('tower'));
+  for (const k of C.CASES) {
+    for (const cool of towers) {
+      const cfg = base();
+      C.applyCase(cfg, k.id);
+      C.applyBoard(cfg, k.id === 'nr200p' ? 'b650e-i' : 'b650-tuf');
+      C.applyCooler(cfg, cool.id);
+      const placed = AF.geometry.layout(cfg);
+      const comps = placed.components;
+      const tooTall = placed.issues.some((i) => /cooler clearance/.test(i.text));
+      if (!tooTall && comps.cpuCooler.y < AF.data.PHYSICS.fanThickness) {
+        check(`${k.id} + ${cool.id}: cooler stays out of the top fan zone`, false, comps.cpuCooler.y);
+      }
+    }
+  }
+  check('all fitting tower coolers clear the roof in every catalog case', true);
+  const low = base();
+  low.case.boardTop = 15;
+  C.applyCooler(low, 'nh-d15');
+  low.slots['top-0'] = { mode: 'exhaust', fan: 'arctic-p14', speed: 0.7 };
+  check('cooler hitting top fans is flagged', AF.geometry.layout(low).issues.some((i) => /hits the top fans/.test(i.text)));
+  const ok = base();
+  C.applyCooler(ok, 'nh-d15');
+  ok.slots['top-0'] = { mode: 'exhaust', fan: 'arctic-p14', speed: 0.7 };
+  check('NH-D15 with top fans fits in a normal mid-tower', !AF.geometry.layout(ok).issues.some((i) => /hits the top/.test(i.text)));
+  const atx = AF.geometry.layout(base()).components;
+  check('ATX slot 2 sits 180 mm below the board top', Math.abs(atx.gpu.pcbTop - atx.mobo.y - 180.32) < 0.01);
+  check('GPU slot is below the cooler', atx.gpu.pcbTop > atx.cpuCooler.y + atx.cpuCooler.h);
+}
+
 fanCurveTests();
+placementTests();
 catalogTests();
 motherboardTests();
 edgeCaseTests();

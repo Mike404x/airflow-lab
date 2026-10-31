@@ -35,7 +35,7 @@
     shroudHeight: 85,
     shroudFrontGap: 40,
     maxFrontSlots: 3,
-    motherboardTopOffset: 18,
+    motherboardTopOffset: 45,
     motherboardRearOffset: 10,
     fanThickness: 25,
     slotGap: 8,
@@ -80,13 +80,13 @@
   };
 
   const MOTHERBOARDS = [
-    { id: 'atx-slot2', name: 'ATX · GPU in slot 2 (most common)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 75, slot1Y: 130, slotCount: 7, x16Slot: 2 },
-    { id: 'atx-slot1', name: 'ATX · GPU in slot 1 (GPU close to CPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 70, slot1Y: 130, slotCount: 7, x16Slot: 1 },
-    { id: 'atx-slot3', name: 'ATX · GPU in slot 3 (M.2 above GPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 78, slot1Y: 130, slotCount: 7, x16Slot: 3 },
-    { id: 'atx-low-socket', name: 'ATX · low socket, large VRM area', form: 'ATX', width: 244, height: 305, socketX: 135, socketY: 92, slot1Y: 130, slotCount: 7, x16Slot: 2 },
-    { id: 'eatx', name: 'E-ATX (305 × 330 mm)', form: 'E-ATX', width: 330, height: 305, socketX: 165, socketY: 80, slot1Y: 130, slotCount: 7, x16Slot: 1 },
-    { id: 'matx', name: 'Micro-ATX', form: 'mATX', width: 244, height: 244, socketX: 141, socketY: 75, slot1Y: 130, slotCount: 4, x16Slot: 1 },
-    { id: 'itx', name: 'Mini-ITX', form: 'ITX', width: 170, height: 170, socketX: 102, socketY: 70, slot1Y: 130, slotCount: 1, x16Slot: 1 },
+    { id: 'atx-slot2', name: 'ATX · GPU in slot 2 (most common)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 78, slot1Y: 160, slotCount: 7, x16Slot: 2 },
+    { id: 'atx-slot1', name: 'ATX · GPU in slot 1 (GPU close to CPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 72, slot1Y: 160, slotCount: 7, x16Slot: 1 },
+    { id: 'atx-slot3', name: 'ATX · GPU in slot 3 (M.2 above GPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 80, slot1Y: 160, slotCount: 7, x16Slot: 3 },
+    { id: 'atx-low-socket', name: 'ATX · low socket, large VRM area', form: 'ATX', width: 244, height: 305, socketX: 135, socketY: 92, slot1Y: 160, slotCount: 7, x16Slot: 2 },
+    { id: 'eatx', name: 'E-ATX (305 × 330 mm)', form: 'E-ATX', width: 330, height: 305, socketX: 165, socketY: 80, slot1Y: 160, slotCount: 7, x16Slot: 1 },
+    { id: 'matx', name: 'Micro-ATX', form: 'mATX', width: 244, height: 244, socketX: 141, socketY: 76, slot1Y: 160, slotCount: 4, x16Slot: 1 },
+    { id: 'itx', name: 'Mini-ITX', form: 'ITX', width: 170, height: 170, socketX: 102, socketY: 65, slot1Y: 157, slotCount: 1, x16Slot: 1 },
   ];
 
   function motherboardConfig(id) {
@@ -152,7 +152,7 @@
 
   function baseConfig() {
     return {
-      version: 1,
+      version: 2,
       ambient: 24,
       otherHeat: 40,
       workload: 'stress',

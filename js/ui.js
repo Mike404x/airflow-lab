@@ -203,6 +203,8 @@
           field('Height (mm)', number(c.height, 280, 700, 1, (v) => editDims((cfg) => { cfg.case.height = v; }))),
           field('Depth (mm)', number(c.depth, 280, 650, 1, (v) => editDims((cfg) => { cfg.case.depth = v; }))),
           field('Width (mm)', number(c.width, 150, 350, 1, (v) => editDims((cfg) => { cfg.case.width = v; })))),
+        field('Motherboard top clearance (mm)', number(AF.geometry.boardTop(config), 15, 150, 1, (v) => update((cfg) => { cfg.case.boardTop = v; })),
+          'Gap between the roof and the top edge of the motherboard. Top fans, radiators and tall coolers share this space.'),
         h('div', { class: 'row' },
           checkbox(c.shroud, (v) => update((cfg) => { cfg.case.shroud = v; }), 'PSU shroud'),
           checkbox(c.pcieVented, (v) => update((cfg) => { cfg.case.pcieVented = v; }), 'Vented PCIe slot covers')),

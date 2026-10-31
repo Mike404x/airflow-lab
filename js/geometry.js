@@ -13,6 +13,12 @@
     return AF.catalog ? AF.catalog.supportCap(config, panel, size) : Infinity;
   }
 
+  function boardTop(config) {
+    const P = AF.data.PHYSICS;
+    const v = config.case.boardTop;
+    return Number.isFinite(v) ? Math.max(15, Math.min(150, v)) : P.motherboardTopOffset;
+  }
+
   function shroudTop(config) {
     const P = AF.data.PHYSICS;
     return config.case.shroud ? config.case.height - P.shroudHeight : config.case.height;
@@ -62,7 +68,7 @@
     if (cap(config, 'rear', rearSize) >= 1) {
       slots.push({
         id: 'rear-0', panel: 'rear', index: 0, size: rearSize,
-        cx: 0, cy: edge + 10 + rearSize / 2, axis: 'x', inward: 1,
+        cx: 0, cy: Math.max(edge + rearSize / 2, boardTop(config) - 20 + rearSize / 2), axis: 'x', inward: 1,
       });
     }
 
@@ -123,7 +129,7 @@
     const P = AF.data.PHYSICS;
     const c = config.case;
     const board = motherboardOf(config);
-    const mobo = { x: P.motherboardRearOffset, y: P.motherboardTopOffset, w: board.width, h: board.height };
+    const mobo = { x: P.motherboardRearOffset, y: boardTop(config), w: board.width, h: board.height };
     const socket = { x: mobo.x + board.socketX, y: mobo.y + board.socketY };
     const x16 = Math.max(1, Math.min(board.slotCount, board.x16Slot));
     const pcieSlots = Array.from({ length: board.slotCount }, (_, k) => ({
@@ -202,11 +208,22 @@
     if (cooler.type === 'tower' && comps.cpuCooler.y + comps.cpuCooler.h > comps.gpu.pcbTop - 3) {
       issues.push({ level: 'warn', text: 'The tower cooler hangs over the GPU slot. Check clearance against the GPU backplate, or use a board with the x16 slot lower.' });
     }
-    if (comps.cpuCooler.y < P.fanThickness + 5) {
-      const topStack = P.fanThickness + (comps.radiator && config.cpu.aio.panel === 'top' ? comps.radiator.thickness : 0);
-      const overlaps = slots.some((s) => s.panel === 'top' && slotConfig(config, s.id).mode !== 'empty'
-        && Math.abs(s.cx - (comps.cpuCooler.x + comps.cpuCooler.w / 2)) < (s.size + comps.cpuCooler.w) / 2);
-      if (overlaps && comps.cpuCooler.y < topStack) issues.push({ level: 'error', text: 'The CPU cooler collides with the top fans. The socket is too close to the top of the case.' });
+    if (cooler.type !== 'aio') {
+      const cc = comps.cpuCooler;
+      const pushPull = comps.radiator && config.cpu.aio.pushPull;
+      let worst = null;
+      for (const s of slots) {
+        if (s.panel !== 'top') continue;
+        const hasFan = slotConfig(config, s.id).mode !== 'empty';
+        const stack = (hasFan ? P.fanThickness : 0) + (s.radiator ? comps.radiator.thickness + (pushPull ? P.fanThickness : 0) : 0);
+        const overlapsX = Math.abs(s.cx - (cc.x + cc.w / 2)) < (s.size + cc.w) / 2;
+        if (stack > 0 && overlapsX && cc.y < stack && (!worst || stack > worst.stack)) worst = { stack, rad: s.radiator };
+      }
+      if (worst) {
+        issues.push({ level: 'error', text: `The CPU cooler reaches ${Math.round(cc.y)} mm from the roof and hits the top ${worst.rad ? 'radiator' : 'fans'} (${worst.stack} mm deep). Move those fans back, use a lower cooler, or a case with more top clearance.` });
+      } else if (cc.y < P.fanThickness + 3) {
+        issues.push({ level: 'warn', text: `The CPU cooler reaches ${Math.round(cc.y)} mm from the roof. Fans above it will not fit.` });
+      }
     }
     if (comps.radiator) {
       const needed = config.cpu.aio.fans;
@@ -218,7 +235,7 @@
       }
       if (config.cpu.aio.panel === 'top') {
         const stack = comps.radiator.thickness + P.fanThickness * (config.cpu.aio.pushPull ? 2 : 1);
-        if (stack > comps.mobo.y + 30) {
+        if (stack > comps.mobo.y + 10) {
           issues.push({ level: 'warn', text: `Top radiator stack is ${stack} mm thick and may hit the motherboard VRM heatsinks or RAM.` });
         }
       }
@@ -243,7 +260,7 @@
     return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config) };
   }
 
-  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);
