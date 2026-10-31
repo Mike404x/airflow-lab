@@ -1,0 +1,190 @@
+const path = require('path');
+const AF = require(path.join(__dirname, '..', 'js', 'data.js'));
+require(path.join(__dirname, '..', 'js', 'geometry.js'));
+require(path.join(__dirname, '..', 'js', 'physics.js'));
+require(path.join(__dirname, '..', 'js', 'cfd.js'));
+
+const CFM = AF.data.UNITS.CFM_TO_M3S;
+let failures = 0;
+let passes = 0;
+
+function check(name, condition, detail) {
+  if (condition) { passes++; return; }
+  failures++;
+  console.log(`FAIL ${name}${detail ? ` -> ${detail}` : ''}`);
+}
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function solve(config) {
+  const layout = AF.geometry.layout(config);
+  const air = AF.physics.solveAirflow(config, layout);
+  const thermal = AF.physics.solveThermal(config, layout, air, null);
+  return { layout, air, thermal };
+}
+
+function fanCurveTests() {
+  const rho = AF.physics.airDensity(25);
+  const fan = AF.physics.makeFan({ cfm: 60, mmh2o: 2, size: 120 }, rho);
+  const el = { fans: [{ fan, speed: 1 }], losses: [] };
+  check('free air flow equals spec', Math.abs(AF.physics.solveFlow(el, 0) - 60 * CFM) < 1e-6);
+  check('zero flow at max static pressure', Math.abs(AF.physics.solveFlow(el, 2 * 9.80665)) < 1e-6);
+  check('backflow above max pressure', AF.physics.solveFlow(el, 40) < 0);
+  const half = { fans: [{ fan, speed: 0.5 }], losses: [] };
+  check('affinity law flow ~ speed', Math.abs(AF.physics.solveFlow(half, 0) - 30 * CFM) < 1e-6);
+  check('affinity law pressure ~ speed^2', Math.abs(AF.physics.fanPressure(fan, 0.5, 0) - 0.25 * 2 * 9.80665) < 1e-9);
+  const series = { fans: [{ fan, speed: 1 }, { fan, speed: 1 }], losses: [] };
+  check('series fans double pressure', Math.abs(AF.physics.developed(series, 0) - 4 * 9.80665) < 1e-9);
+}
+
+function balanceTests() {
+  for (const p of AF.data.PRESETS) {
+    const { air } = solve(p.config);
+    const scale = Math.max(air.throughFlow, 1e-3);
+    check(`${p.id}: mass balance closes`, Math.abs(air.imbalance) / scale < 1e-6, air.imbalance);
+    const out = air.fanOut + air.passiveOut;
+    check(`${p.id}: inflow equals outflow`, Math.abs(air.throughFlow - out) / scale < 1e-6);
+  }
+  const base = clone(AF.data.PRESETS[0].config);
+  const more = clone(base);
+  more.slots['rear-0'].speed = 1;
+  more.slots['top-0'] = { mode: 'exhaust', fan: 'arctic-p14', speed: 1 };
+  check('adding exhaust lowers case pressure', solve(more).air.pressure < solve(base).air.pressure);
+  const filtered = clone(base);
+  filtered.slots['front-0'].filter = 'fine';
+  const f0 = solve(base).air.elements.find((e) => e.id === 'front-0').q;
+  const f1 = solve(filtered).air.elements.find((e) => e.id === 'front-0').q;
+  check('finer filter reduces fan flow', f1 < f0);
+}
+
+function thermalTests() {
+  const base = clone(AF.data.PRESETS[0].config);
+  const { air, thermal } = solve(base);
+  const expectedRise = thermal.caseHeat / (air.rho * AF.data.PHYSICS.airCp * air.throughFlow);
+  check('well-mixed energy balance', Math.abs(thermal.caseRise - expectedRise) < 1e-6);
+  const hot = clone(base);
+  hot.ambient = 34;
+  check('ambient raises CPU temperature', solve(hot).thermal.cpu.temp > thermal.cpu.temp);
+  const slow = clone(base);
+  slow.cpu.coolerFanSpeed = 0.3;
+  check('slower cooler fan raises CPU temperature', solve(slow).thermal.cpu.temp > thermal.cpu.temp);
+  const throttle = clone(base);
+  throttle.cpu.power = 400;
+  const t = solve(throttle).thermal;
+  check('throttling caps CPU at Tjmax', t.cpu.throttled && Math.abs(t.cpu.temp - throttle.cpu.tjmax) < 0.05, t.cpu.temp);
+  const aio = clone(AF.data.PRESETS.find((p) => p.id === 'aio-top').config);
+  aio.cpu.power = 150;
+  const exhaustRad = solve(aio).thermal;
+  aio.cpu.aio.panel = 'front';
+  const intakeRad = solve(aio).thermal;
+  check('intake radiator cools CPU better', intakeRad.cpu.temp < exhaustRad.cpu.temp || intakeRad.cpu.power > exhaustRad.cpu.power);
+  check('intake radiator heats GPU', intakeRad.gpu.temp > exhaustRad.gpu.temp);
+}
+
+function cfdTests() {
+  for (const p of AF.data.PRESETS) {
+    const { layout, air, thermal } = solve(p.config);
+    const sim = new AF.CaseSim(p.config, layout, air, thermal, null);
+    const start = Date.now();
+    const steps = Math.ceil(Math.max(4, 5 * sim.flushTime) / sim.dt);
+    sim.advance(steps);
+    const ms = (Date.now() - start) / steps;
+    let finite = true;
+    for (const t of sim.T) if (!Number.isFinite(t)) finite = false;
+    check(`${p.id}: CFD stays finite`, finite);
+
+    const { nx, ny, type, u, v } = sim;
+    let maxDiv = 0;
+    let sumSrc = 0;
+    for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const c = i + j * nx;
+      if (type[c] !== 0) continue;
+      const d = (u[i + 1 + j * (nx + 1)] - u[i + j * (nx + 1)] + v[i + (j + 1) * nx] - v[i + j * nx]) / sim.dx - sim.src[c];
+      maxDiv = Math.max(maxDiv, Math.abs(d));
+      sumSrc += sim.src[c];
+    }
+    check(`${p.id}: CFD divergence small`, maxDiv < 5, maxDiv.toFixed(3));
+
+    let heatOut = 0;
+    let flowOut = 0;
+    let flowIn = 0;
+    const rhoCpW = sim.rhoCp * sim.width * sim.dx;
+    const T = sim.T;
+    for (let j = 0; j < ny; j++) for (let i = 0; i <= nx; i++) {
+      const k = i + j * (nx + 1);
+      const a = i > 0 ? type[i - 1 + j * nx] : 1;
+      const b = i < nx ? type[i + j * nx] : 1;
+      if ((a === 0) === (b === 0)) continue;
+      const vel = u[k];
+      const outward = a === 0 ? vel : -vel;
+      const fluidCell = a === 0 ? i - 1 + j * nx : i + j * nx;
+      if (outward > 0) { heatOut += rhoCpW * outward * (T[fluidCell] - sim.Tamb); flowOut += outward * sim.width * sim.dx; } else flowIn -= outward * sim.width * sim.dx;
+    }
+    for (let j = 0; j <= ny; j++) for (let i = 0; i < nx; i++) {
+      const k = i + j * nx;
+      const a = j > 0 ? type[i + (j - 1) * nx] : 1;
+      const b = j < ny ? type[i + j * nx] : 1;
+      if ((a === 0) === (b === 0)) continue;
+      const vel = v[k];
+      const outward = a === 0 ? vel : -vel;
+      const fluidCell = a === 0 ? i + (j - 1) * nx : i + j * nx;
+      if (outward > 0) { heatOut += rhoCpW * outward * (T[fluidCell] - sim.Tamb); flowOut += outward * sim.width * sim.dx; } else flowIn -= outward * sim.width * sim.dx;
+    }
+    for (const c of sim.srcCells) {
+      const q = sim.src[c] * sim.width * sim.dx * sim.dx;
+      if (q < 0) { heatOut += sim.rhoCp * -q * (T[c] - sim.Tamb); flowOut -= q; } else flowIn += q;
+    }
+    let heatIn = 0;
+    for (const c of sim.heatCells) heatIn += sim.heat[c] * sim.rhoCp * sim.width * sim.dx * sim.dx;
+    const flowErr = Math.abs(flowOut - flowIn) / flowIn;
+    const heatErr = Math.abs(heatOut - heatIn) / heatIn;
+    check(`${p.id}: CFD conserves mass (${(flowErr * 100).toFixed(2)}%)`, flowErr < 0.01);
+    check(`${p.id}: CFD throughput >= network`, flowIn >= air.throughFlow * 0.97);
+    check(`${p.id}: CFD heat balance (${(heatErr * 100).toFixed(1)}%)`, heatErr < 0.15);
+    const stats = sim.stats();
+    const simThermal = AF.physics.solveThermal(p.config, layout, air, stats.inlets);
+    console.log(`  ${p.id.padEnd(14)} ${ms.toFixed(2)} ms/step, ${steps} steps, dt ${(sim.dt * 1000).toFixed(1)} ms | net flow ${(air.throughFlow / CFM).toFixed(0)} CFM, CFD out ${(flowOut / CFM).toFixed(0)} | heat in ${heatIn.toFixed(0)} W out ${heatOut.toFixed(0)} W | inlet CPU ${stats.inlets.cpu.toFixed(1)} GPU ${stats.inlets.gpu.toFixed(1)} (mixed ${thermal.caseTemp.toFixed(1)}) | CPU ${simThermal.cpu.temp.toFixed(1)} GPU ${simThermal.gpu.temp.toFixed(1)} | stagnant ${(stats.stagnant * 100).toFixed(0)}%`);
+  }
+}
+
+function edgeCaseTests() {
+  const scenarios = {
+    'no fans': (c) => { c.slots = {}; },
+    'stopped fan': (c) => { c.slots['front-0'].speed = 0; },
+    'huge imbalance': (c) => {
+      c.case.panels.top.fanSize = 120;
+      for (const id of ['top-0', 'top-1', 'top-2']) c.slots[id] = { mode: 'exhaust', fan: 'arctic-p12-max', speed: 1 };
+      c.slots['rear-0'] = { mode: 'exhaust', fan: 'arctic-p12-max', speed: 1 };
+      c.case.pcieVented = false;
+    },
+    'custom fan': (c) => { c.slots['front-0'] = { mode: 'intake', fan: 'custom', custom: { cfm: 120, mmh2o: 6, rpm: 3000 }, speed: 1 }; },
+    'empty radiator': (c) => { c.cpu.cooler = 'aio'; c.cpu.aio = { panel: 'top', fans: 2, thickness: 45, pushPull: true }; },
+    'tiny case': (c) => { c.case.height = 280; c.case.depth = 280; c.case.width = 150; c.case.formFactor = 'itx'; },
+    'giant case': (c) => { c.case.height = 700; c.case.depth = 650; c.case.width = 350; c.case.shroud = false; },
+  };
+  for (const [name, mutate] of Object.entries(scenarios)) {
+    const config = clone(AF.data.PRESETS[0].config);
+    mutate(config);
+    try {
+      const { layout, air, thermal } = solve(config);
+      check(`${name}: pressure finite`, Number.isFinite(air.pressure), air.pressure);
+      check(`${name}: temps finite`, Number.isFinite(thermal.cpu.temp) && Number.isFinite(thermal.gpu.temp));
+      const sim = new AF.CaseSim(config, layout, air, thermal, null);
+      sim.advance(150);
+      check(`${name}: CFD finite`, sim.T.every(Number.isFinite) && sim.u.every(Number.isFinite));
+      AF.physics.analyze(config, layout, air, thermal, sim.stats());
+      if (name === 'stopped fan') check('stopped fan passes air backwards or acts as a vent', air.elements.find((e) => e.id === 'front-0').q <= 0.0001);
+      if (name === 'huge imbalance') check('huge imbalance gives strong negative pressure', air.pressure < -5, air.pressure);
+    } catch (err) {
+      check(`${name}: no exception`, false, err.stack);
+    }
+  }
+}
+
+fanCurveTests();
+edgeCaseTests();
+balanceTests();
+thermalTests();
+cfdTests();
+console.log(`${passes} passed, ${failures} failed`);
+process.exit(failures ? 1 : 0);

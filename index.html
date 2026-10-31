@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Airflow Lab · PC case airflow simulator</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo"></span>Airflow Lab</div>
+    <select id="presetSelect" title="Example builds"></select>
+    <button id="btnLoadPreset" class="btn">Load preset</button>
+    <span class="spacer"></span>
+    <button id="btnExport" class="btn">Export</button>
+    <label class="btn">Import<input type="file" id="fileImport" accept="application/json,.json" hidden></label>
+    <button id="btnReset" class="btn ghost">Reset</button>
+  </header>
+  <main class="layout">
+    <aside id="configPanel" class="panel left"></aside>
+    <section class="stage">
+      <div class="toolbar">
+        <div class="segmented">
+          <button class="seg active" data-view="temperature">Temperature</button>
+          <button class="seg" data-view="speed">Air speed</button>
+          <button class="seg" data-view="none">Streamlines only</button>
+        </div>
+        <label class="check"><input type="checkbox" id="chkParticles" checked> Particles</label>
+        <span class="spacer"></span>
+        <select id="speedSelect" title="Simulation speed">
+          <option value="1">Real time</option>
+          <option value="4">4× faster</option>
+          <option value="max" selected>As fast as possible</option>
+        </select>
+        <button id="btnPlay" class="btn">Pause</button>
+        <button id="btnRestart" class="btn ghost">Restart CFD</button>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="caseCanvas"></canvas>
+        <div id="tooltip" class="tooltip"></div>
+      </div>
+      <div class="stage-footer">
+        <div id="legend" class="legend"></div>
+        <div id="simStatus" class="sim-status"></div>
+      </div>
+    </section>
+    <aside class="panel right">
+      <div id="editor" class="editor"></div>
+      <div id="results"></div>
+    </aside>
+  </main>
+  <script src="js/data.js"></script>
+  <script src="js/geometry.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/cfd.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

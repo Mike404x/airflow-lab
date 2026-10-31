@@ -1,0 +1,42 @@
+# Airflow Lab
+
+Configurable PC case airflow simulator. Build a case, place fans, pick a CPU/GPU and its cooler, and check the pressure, the flow of every fan, the air paths, dead zones and component temperatures.
+
+## Run
+
+Open `index.html` in a browser (no build step, no server, no dependencies).
+
+Tests: `node tests/run-tests.js`
+
+## What you can configure
+
+- **Case**: height/depth/width, motherboard form factor, PSU shroud, vented PCIe covers. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.
+- **Fan slots**: click any slot in the view. Set it to intake, exhaust or open vent, and choose the fan model (spec-sheet presets or a custom CFM / mmH₂O / RPM), the speed and the dust filter. Use "Copy to all slots" to fill a whole panel.
+- **CPU**: processor presets (power, die resistance, Tjmax), stock, low-profile, single-tower, dual-tower or AIO cooler. For tower coolers you can set the fan model, the fan count (push-pull) and the speed. For AIOs you can set the radiator location, size, thickness and push-pull.
+- **GPU**: presets, board power, length, slot thickness, and the cooler type (open-air dual/triple flow-through, or blower), with fan count and speed.
+- **Environment**: room temperature, other heat (VRM, RAM, SSD), CFM or m³/h, Pa or mmH₂O.
+- Export/import builds as JSON. The current build autosaves to localStorage.
+
+## How it is computed
+
+### 1. Flow network (exact for the lumped model)
+- Every fan uses a P‑Q curve `ΔP = Pmax·(1 − (Q/Qmax)^1.5)` built from its spec sheet. Speed follows the fan affinity laws (Q ∝ n, P ∝ n²). When pressure exceeds Pmax, a fan passes backflow through a stalled-rotor resistance.
+- Losses on each path: panel grill (loss coefficient ζ), dust filter, radiator (`ΔP ∝ v^1.75`, scaled by thickness). Open slots, PCIe vents and panel gaps are orifices (Cd = 0.62).
+- The internal case pressure is solved so the mass balance closes (Σ inflow = Σ outflow, residual ~1e‑17). This gives each fan's real operating point, the passive flow through every gap, and whether the case is positive or negative.
+- CPU tower/top-down and GPU fans are solved against their own heatsink impedance. A blower GPU is an exhaust in the case network.
+
+### 2. Thermal model
+- Component temperature = inlet air + P × (die resistance + paste + heatsink base + convective resistance). The convective resistance scales with heatsink airflow as `(Qref/Q)^0.8`.
+- AIO: the coolant temperature is set by the radiator sections in parallel. Each section's UA depends on its own fan flow and its inlet air: room air for intake radiators, case air for exhaust radiators. Heat from intake radiators goes into the case.
+- Throttling: if Tjmax or the GPU limit is reached, the power is reduced until the temperature holds at the limit.
+- **Well-mixed** column: uniform case air, `ΔT = Q_heat / (ρ·cp·Q_through)` (conservative).
+
+### 3. 2D CFD (side view)
+- Incompressible flow on a staggered (MAC) grid (~5 mm cells), solved with a MIC(0)-preconditioned conjugate-gradient pressure solve. Fans are prescribed flux boundaries taken from the network solution, so CFD and network flows match. It includes Boussinesq buoyancy.
+- Temperature uses a conservative finite-volume upwind scheme, so the energy balance closes within a few %. Heat is injected in the CPU heatsink, GPU heatsink, radiators and motherboard area.
+- The **CFD** column uses the local air temperature at each cooler inlet. This captures GPU exhaust recirculating into the CPU cooler, the hot pocket behind a top-front exhaust, dead zones and similar effects.
+
+## Limitations
+- The CFD is 2D, a slice through the side view. It doesn't resolve flow toward or from the side panel or around the motherboard tray. Local temperatures are indicative, so compare configurations rather than trust absolute values to ±1 °C.
+- Fan curves are fitted from 2 spec-sheet points (max CFM, max static pressure). Real curves have a stall dip.
+- Resistance and heatsink coefficients are typical values, not measurements of a specific product.
