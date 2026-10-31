@@ -179,7 +179,6 @@
     const go = (k) => { st.panel = SECTIONS[k].id; buildConfigPanel(rootEl, app); };
     rootEl.replaceChildren(
       h('div', { class: 'sidebar-head' },
-        h('div', { class: 'sidebar-eyebrow' }, `Step ${index + 1} of ${SECTIONS.length}`),
         h('div', { class: 'sidebar-title' }, meta.title),
         h('div', { class: 'sidebar-sub' }, sectionSubtitle(meta.id, st.config))),
       h('div', { class: 'sidebar-body' },

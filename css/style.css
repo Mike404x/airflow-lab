@@ -163,8 +163,7 @@ option { color: var(--text); background: var(--surface); font-weight: 400; }
   padding: 16px 18px 14px;
   background: linear-gradient(180deg, rgba(11, 14, 20, 0.98) 70%, rgba(11, 14, 20, 0));
 }
-.sidebar-eyebrow { color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-.sidebar-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin-top: 3px; }
+.sidebar-title { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .sidebar-sub { color: var(--muted); font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar-body { padding: 2px 18px 22px; }
 .step-nav { display: flex; gap: 8px; margin-top: 18px; }
