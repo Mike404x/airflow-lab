@@ -2,13 +2,13 @@
   const AF = root.AF || (root.AF = {});
 
   const COLORS = {
-    background: '#0d1117',
-    caseFill: '#121a24',
-    wall: '#8b9bb0',
-    intake: '#3fa7ff',
-    exhaust: '#ff6a55',
-    empty: '#56657a',
-    selected: '#ffd54a',
+    background: '#0b0f16',
+    caseFill: 'rgba(19, 26, 37, 0.92)',
+    wall: '#94a3b8',
+    intake: '#38bdf8',
+    exhaust: '#fb7185',
+    empty: '#64748b',
+    selected: '#fde047',
     component: '#c9d4e3',
     text: '#d8e1ee',
     dim: '#7d8ba0',
@@ -70,7 +70,7 @@
     computeTransform(config) {
       const W = this.canvas.width / this.dpr;
       const H = this.canvas.height / this.dpr;
-      const m = { l: 86, r: 86, t: 74, b: 64 };
+      const m = { l: 92, r: 92, t: 112, b: 84 };
       const scale = Math.min((W - m.l - m.r) / config.case.depth, (H - m.t - m.b) / config.case.height);
       const ox = m.l + ((W - m.l - m.r) - config.case.depth * scale) / 2;
       const oy = m.t + ((H - m.t - m.b) - config.case.height * scale) / 2;
@@ -172,7 +172,7 @@
       const c = state.config.case;
       ctx.fillStyle = COLORS.caseFill;
       ctx.fillRect(this.X(0), this.Y(0), this.S(c.depth), this.S(c.height));
-      ctx.font = '600 11px Inter, Segoe UI, sans-serif';
+      ctx.font = '600 11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
       ctx.fillStyle = COLORS.dim;
       ctx.textAlign = 'center';
       ctx.fillText('REAR', this.X(0) - 52, this.Y(c.height) + 30);
@@ -227,7 +227,7 @@
           const oy = top ? this.Y(0) - 44 : this.Y(mid);
           if (el.inflow > 0) this.drawArrow(ox, oy, ix, iy, 'rgba(160,175,195,0.85)', 1.5);
           else this.drawArrow(ix, iy, ox, oy, 'rgba(160,175,195,0.85)', 1.5);
-          ctx.font = '11px Inter, Segoe UI, sans-serif';
+          ctx.font = '11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
           ctx.fillStyle = COLORS.dim;
           ctx.textAlign = top ? 'center' : 'right';
           ctx.fillText(`grille ${fmtFlowForWalls(el)}`, top ? ox : ox - 4, top ? oy - 6 : oy + 16);
@@ -252,7 +252,7 @@
       ctx.strokeRect(this.X(m.x), this.Y(m.y), this.S(m.w), this.S(m.h));
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(120,150,190,0.6)';
-      ctx.font = '10px Inter, Segoe UI, sans-serif';
+      ctx.font = '10px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(`motherboard (${comps.board.width}×${comps.board.height})`, this.X(m.x) + 4, this.Y(m.y + m.h) - 4);
       for (const s of comps.pcieSlots) {
@@ -451,7 +451,7 @@
           const r = this.S(s.size / 2);
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.fillStyle = isFan ? (sc.mode === 'intake' ? 'rgba(63,167,255,0.14)' : 'rgba(255,106,85,0.14)') : 'rgba(0,0,0,0)';
+          ctx.fillStyle = isFan ? (sc.mode === 'intake' ? 'rgba(56,189,248,0.14)' : 'rgba(251,113,133,0.14)') : 'rgba(0,0,0,0)';
           ctx.fill();
           ctx.setLineDash(isFan ? [] : [4, 4]);
           ctx.strokeStyle = selected ? COLORS.selected : color;
@@ -473,7 +473,7 @@
               ctx.fillStyle = color;
               ctx.fill();
             }
-            ctx.font = '600 11px Inter, Segoe UI, sans-serif';
+            ctx.font = '600 11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
             ctx.fillStyle = COLORS.text;
             ctx.textAlign = 'center';
             ctx.fillText(fmtFlow(Math.abs(el.q)), cx, cy + r * 0.62);
@@ -483,7 +483,7 @@
         }
 
         const r = this.slotRect(s, config);
-        ctx.fillStyle = isFan ? (sc.mode === 'intake' ? 'rgba(63,167,255,0.35)' : 'rgba(255,106,85,0.35)') : 'rgba(86,101,122,0.12)';
+        ctx.fillStyle = isFan ? (sc.mode === 'intake' ? 'rgba(56,189,248,0.3)' : 'rgba(251,113,133,0.3)') : 'rgba(86,101,122,0.12)';
         ctx.fillRect(this.X(r.x), this.Y(r.y), this.S(r.w), this.S(r.h));
         ctx.setLineDash(isFan ? [] : [4, 3]);
         ctx.strokeStyle = selected ? COLORS.selected : color;
@@ -519,7 +519,7 @@
           const arrowColor = el.kind === 'vent' ? 'rgba(160,175,195,0.8)' : color;
           if (sign > 0) this.drawArrow(ox, oy, ix, iy, arrowColor, el.kind === 'vent' ? 1.5 : 3);
           else this.drawArrow(ix, iy, ox, oy, arrowColor, el.kind === 'vent' ? 1.5 : 3);
-          ctx.font = `${el.kind === 'vent' ? '' : '600 '}11px Inter, Segoe UI, sans-serif`;
+          ctx.font = `${el.kind === 'vent' ? '' : '600 '}11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif`;
           ctx.fillStyle = el.kind === 'vent' ? COLORS.dim : COLORS.text;
           ctx.textAlign = s.panel === 'front' ? 'left' : s.panel === 'rear' ? 'right' : 'center';
           const lx = this.X(s.cx) - inward[0] * 50;
@@ -536,7 +536,7 @@
       if (!th) return;
       const comps = state.layout.components;
       const tag = (x, y, text, hot) => {
-        ctx.font = '600 11px Inter, Segoe UI, sans-serif';
+        ctx.font = '600 11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
         const w = ctx.measureText(text).width + 12;
         ctx.fillStyle = hot ? 'rgba(160,30,20,0.9)' : 'rgba(10,14,20,0.85)';
         ctx.strokeStyle = hot ? '#ff6a55' : 'rgba(200,210,225,0.4)';
@@ -561,8 +561,7 @@
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this.computeTransform(state.config);
       this.hitAreas = [];
-      ctx.fillStyle = COLORS.background;
-      ctx.fillRect(0, 0, this.t.W, this.t.H);
+      ctx.clearRect(0, 0, this.t.W, this.t.H);
       this.drawCaseShell(state);
       this.drawField(state);
       this.drawComponents(state);

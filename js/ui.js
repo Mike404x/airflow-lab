@@ -81,9 +81,116 @@
     return h('div', { class: 'field' }, h('label', { class: 'field-label' }, label), control, hint ? h('div', { class: 'hint' }, hint) : null);
   }
 
+  const ICON_PATHS = {
+    case: '<rect x="5" y="2.5" width="14" height="19" rx="2"/><circle cx="12" cy="9.5" r="3"/><path d="M9 17h6"/>',
+    board: '<rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7.5" y="7" width="6" height="6" rx="1"/><path d="M7 17h10M17 7v4"/>',
+    cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx=".5"/><path d="M9 2.5v3M15 2.5v3M9 18.5v3M15 18.5v3M2.5 9h3M2.5 15h3M18.5 9h3M18.5 15h3"/>',
+    fan: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.6"/><path d="M12 10.4c0-2.4.9-4.4 2.6-4.4 1.8 0 1.6 2.9-.3 4.8M13.6 12c2.4 0 4.4.9 4.4 2.6 0 1.8-2.9 1.6-4.8-.3M12 13.6c0 2.4-.9 4.4-2.6 4.4-1.8 0-1.6-2.9.3-4.8M10.4 12c-2.4 0-4.4-.9-4.4-2.6 0-1.8 2.9-1.6 4.8.3"/>',
+    gpu: '<rect x="2" y="6" width="20" height="11" rx="2"/><circle cx="8" cy="11.5" r="2.6"/><circle cx="16" cy="11.5" r="2.6"/><path d="M5 17v2.5M9 17v2.5"/>',
+    sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+    download: '<path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
+    upload: '<path d="M12 20V9M7.5 13 12 8.5l4.5 4.5M5 4h14"/>',
+    reset: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5M3.5 3.5v5h5"/>',
+    restart: '<path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1l2.6 2.6M20.5 3.5v5h-5"/>',
+    pause: '<path d="M8.5 5v14M15.5 5v14"/>',
+    play: '<path d="M7.5 5v14l11-7z"/>',
+    sparkle: '<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16v4M17 18h4"/>',
+    target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/>',
+    chart: '<path d="M4 4v16h16"/><path d="m8 14 3.5-3.5 3 3L19 9"/>',
+    bulb: '<path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1v.1h5v-.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z"/>',
+    alert: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.4v.1"/>',
+    warn: '<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 16.9v.1"/>',
+    info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.1"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    thermo: '<path d="M14 14.6V5a2 2 0 0 0-4 0v9.6a4 4 0 1 0 4 0z"/><path d="M12 15v-4"/>',
+    wind: '<path d="M3 8h10.5a2.75 2.75 0 1 0-2.75-2.75M3 12h15.5a2.75 2.75 0 1 1-2.75 2.75M3 16h7"/>',
+    gauge: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 3.5-5.5"/>',
+    left: '<path d="m15 6-6 6 6 6"/>',
+    right: '<path d="m9 6 6 6-6 6"/>',
+    vent: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M7 8h10M7 12h10M7 16h10"/>',
+  };
+
+  function iconSvg(name) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name] || ''}</svg>`;
+  }
+
+  function icon(name) {
+    const span = document.createElement('span');
+    span.style.display = 'contents';
+    span.innerHTML = iconSvg(name);
+    return span;
+  }
+
+  function hydrateIcons(rootEl) {
+    for (const el of rootEl.querySelectorAll('[data-icon]')) {
+      const svg = iconSvg(el.dataset.icon);
+      const existing = el.querySelector('svg');
+      if (existing) existing.outerHTML = svg; else el.insertAdjacentHTML('afterbegin', svg);
+    }
+  }
+
+  const SECTIONS = [
+    { title: 'Case', id: 'case', icon: 'case', short: 'Case' },
+    { title: 'Motherboard', id: 'board', icon: 'board', short: 'Board' },
+    { title: 'Processor', id: 'cpu', icon: 'cpu', short: 'CPU' },
+    { title: 'CPU cooler', id: 'cooler', icon: 'fan', short: 'Cooler' },
+    { title: 'Graphics card', id: 'gpu', icon: 'gpu', short: 'GPU' },
+    { title: 'Workload, environment & units', id: 'env', icon: 'sliders', short: 'Setup' },
+  ];
+
+  const ISSUE_SECTIONS = [
+    [/socket|motherboard/i, 'board'],
+    [/GPU/, 'gpu'],
+    [/cooler|radiator/i, 'cooler'],
+    [/panel|slot/i, 'case'],
+  ];
+
+  function sectionSubtitle(id, config) {
+    const C = AF.catalog;
+    const name = (list, key) => { const e = C.byId(list, key); return e ? e.name : null; };
+    if (id === 'case') return config.case.name;
+    if (id === 'board') return name(C.BOARDS, (config.case.motherboard || {}).product) || 'Generic board';
+    if (id === 'cpu') return name(C.CPUS, config.cpu.model) || 'Custom CPU';
+    if (id === 'cooler') return AF.catalog.cpuCooler(config).name;
+    if (id === 'gpu') return name(C.GPUS, config.gpu.model) || 'Custom GPU';
+    return `${config.ambient} °C room · ${config.workload === 'gaming' ? 'gaming' : 'full load'}`;
+  }
+
+  function renderSidebar(rootEl, app, sections) {
+    const st = app.state;
+    const rail = document.getElementById('rail');
+    const active = SECTIONS.find((s) => s.id === st.panel) ? st.panel : 'case';
+    const issueFor = new Set();
+    for (const issue of st.layout.issues) {
+      if (issue.level !== 'error') continue;
+      const hit = ISSUE_SECTIONS.find(([re]) => re.test(issue.text));
+      issueFor.add(hit ? hit[1] : 'case');
+    }
+    if (rail) {
+      rail.replaceChildren(...SECTIONS.map((meta) => h('button', {
+        class: `rail-item ${meta.id === active ? 'active' : ''}`,
+        title: `${meta.title}: ${sectionSubtitle(meta.id, st.config)}`,
+        onclick: () => { st.panel = meta.id; buildConfigPanel(rootEl, app); },
+      }, icon(meta.icon), meta.short, issueFor.has(meta.id) ? h('span', { class: 'dot' }) : null)));
+    }
+    const index = SECTIONS.findIndex((s) => s.id === active);
+    const meta = SECTIONS[index];
+    const sec = sections.find((s) => s.title === meta.title);
+    const go = (k) => { st.panel = SECTIONS[k].id; buildConfigPanel(rootEl, app); };
+    rootEl.replaceChildren(
+      h('div', { class: 'sidebar-head' },
+        h('div', { class: 'sidebar-eyebrow' }, `Step ${index + 1} of ${SECTIONS.length}`),
+        h('div', { class: 'sidebar-title' }, meta.title),
+        h('div', { class: 'sidebar-sub' }, sectionSubtitle(meta.id, st.config))),
+      h('div', { class: 'sidebar-body' },
+        ...(sec ? sec.children : []),
+        h('div', { class: 'step-nav' },
+          index > 0 ? h('button', { class: 'btn', onclick: () => go(index - 1) }, icon('left'), SECTIONS[index - 1].short) : null,
+          index < SECTIONS.length - 1 ? h('button', { class: 'btn primary', onclick: () => go(index + 1) }, `Next: ${SECTIONS[index + 1].short}`, icon('right')) : null)));
+  }
+
   function section(title, open, ...children) {
-    const d = h('details', { class: 'section', open }, h('summary', {}, title), h('div', { class: 'section-body' }, ...children));
-    return d;
+    return { title, children: children.flat().filter((c) => c != null && c !== false) };
   }
 
   function fanOptions(size) {
@@ -156,7 +263,8 @@
   }
 
   function summary(text) {
-    return h('div', { class: 'summary' }, text);
+    const parts = String(text).split(' · ').filter(Boolean);
+    return h('div', { class: 'summary' }, parts.map((p) => h('span', { class: `pill ${p.startsWith('≈') || p.includes('approximate') ? 'warn' : ''}` }, p)));
   }
 
   function buildConfigPanel(rootEl, app) {
@@ -165,7 +273,7 @@
     const C = AF.catalog;
     const update = (fn) => app.update(fn);
     const live = (fn) => app.update(fn, { live: true });
-    rootEl.replaceChildren();
+    const sections = [];
 
     const c = config.case;
     const caseEntry = C.byId(C.CASES, c.model);
@@ -181,7 +289,7 @@
       h('td', {}, D.PANELS[key].name),
       h('td', {}, select(Object.entries(D.PANEL_TYPES).map(([v, t]) => ({ value: v, label: t.name })), c.panels[key].type,
         (v) => update((cfg) => { cfg.case.panels[key].type = v; }))),
-      h('td', {}, select(C.supportedSizes(config, key).map((s) => ({ value: s, label: `${s} mm` })), c.panels[key].fanSize,
+      h('td', { class: 'size-cell' }, select(C.supportedSizes(config, key).map((s) => ({ value: s, label: `${s}` })), c.panels[key].fanSize,
         (v) => update((cfg) => {
           const size = +v;
           cfg.case.panels[key].fanSize = size;
@@ -192,7 +300,7 @@
           }
         })))));
     const frontCap = AF.geometry.frontSlotCapacity(config);
-    rootEl.append(section('Case', true,
+    sections.push(section('Case', true,
       field('Case model', picker(groupOptions(C.CASES), c.model, (v) => {
         if (v === CUSTOM) editDims(() => {}); else update((cfg) => C.applyCase(cfg, v));
       }, 'Custom / generic case')),
@@ -213,7 +321,7 @@
           Math.max(1, Math.min(c.frontSlots == null ? 3 : c.frontSlots, frontCap)),
           (v) => update((cfg) => { cfg.case.frontSlots = +v; })),
           `Up to ${frontCap} fit at this fan size.`) : null,
-        h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan size'))), h('tbody', {}, panelRows))),
+        h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan mm'))), h('tbody', {}, panelRows))),
       frontCap > 0 ? h('button', { class: 'btn small', onclick: () => app.fillFront() }, 'Fill all front mounts with intake fans') : null,
       h('div', { class: 'hint' }, 'Click a fan slot in the view to change its fan. Empty slots on open panels work as passive vents.')));
 
@@ -221,7 +329,7 @@
     const boardEntry = C.boardOf(config);
     const setBoard = (patch) => update((cfg) => { cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), patch); });
     const layoutEntry = D.MOTHERBOARDS.find((m) => m.id === board.model);
-    rootEl.append(section('Motherboard', true,
+    sections.push(section('Motherboard', true,
       field('Motherboard', picker(groupOptions(C.BOARDS), board.product, (v) => update((cfg) => {
         if (v === CUSTOM) cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), { product: null, socket: null });
         else C.applyBoard(cfg, v);
@@ -244,7 +352,7 @@
 
     const cpu = config.cpu;
     const cpuEntry = C.byId(C.CPUS, cpu.model);
-    rootEl.append(section('Processor', true,
+    sections.push(section('Processor', true,
       field('CPU', picker(groupOptions(C.CPUS), cpu.model, (v) => update((cfg) => {
         if (v === CUSTOM) { cfg.cpu.model = 'custom'; cfg.cpu.socket = null; } else C.applyCpu(cfg, v);
       }), 'Custom CPU')),
@@ -286,13 +394,13 @@
         h('button', { class: 'btn small', onclick: () => app.fillRadiatorFans() }, 'Put fans on empty radiator slots'),
         h('div', { class: 'hint' }, 'Choosing an AIO model mounts its radiator with its bundled fans. Radiator fans are the slot fans of that panel; click them in the view to edit.'));
     }
-    rootEl.append(section('CPU cooler', true, ...coolerChildren));
+    sections.push(section('CPU cooler', true, ...coolerChildren));
 
     const gpu = config.gpu;
     const gpuEntry = C.byId(C.GPUS, gpu.model);
     const gpuCooler = C.gpuCooler(config);
     const thicknessOptions = Array.from(new Set([1, 2, 2.5, 3, 3.5, 4, gpu.slots])).sort((a, b) => a - b);
-    rootEl.append(section('Graphics card', true,
+    sections.push(section('Graphics card', true,
       field('GPU', picker(groupOptions(C.GPUS), gpu.model, (v) => update((cfg) => {
         if (v === CUSTOM) cfg.gpu.model = 'custom'; else C.applyGpu(cfg, v);
       }), 'Custom GPU')),
@@ -314,7 +422,7 @@
           field('Temp limit (°C)', number(gpu.tmax, 60, 110, 1, (v) => update((cfg) => { cfg.gpu.tmax = v; }))),
           field('Die resistance (°C/W)', number(gpu.rjc, 0.01, 0.5, 0.005, (v) => update((cfg) => { cfg.gpu.rjc = v; })))))));
 
-    rootEl.append(section('Workload, environment & units', true,
+    sections.push(section('Workload, environment & units', true,
       field('Workload', select([{ value: 'stress', label: 'Full load (stress test / rendering)' }, { value: 'gaming', label: 'Gaming (typical power)' }], config.workload || 'stress',
         (v) => update((cfg) => {
           cfg.workload = v;
@@ -328,6 +436,7 @@
       h('div', { class: 'grid2' },
         field('Airflow unit', select([{ value: 'cfm', label: 'CFM' }, { value: 'm3h', label: 'm³/h' }], config.units.flow, (v) => update((cfg) => { cfg.units.flow = v; }))),
         field('Pressure unit', select([{ value: 'pa', label: 'Pa' }, { value: 'mmh2o', label: 'mmH₂O' }], config.units.pressure, (v) => update((cfg) => { cfg.units.pressure = v; }))))));
+    renderSidebar(rootEl, app, sections);
   }
 
   function selectionElement(app) {
@@ -336,6 +445,12 @@
     if (id === 'cpu-cooler') return st.air.coolers.cpu || null;
     if (id === 'gpu-cooler') return st.air.coolers.gpu || st.air.blower || null;
     return st.air.elements.find((e) => e.id === id) || null;
+  }
+
+  function editorHead(iconName, tone, title, sub, badge) {
+    return h('div', { class: 'editor-head' },
+      h('div', { class: `editor-icon ${tone || ''}` }, icon(iconName)),
+      h('div', {}, h('h3', {}, title, badge || null), sub ? h('div', { class: 'editor-sub' }, sub) : null));
   }
 
   function buildEditor(rootEl, app) {
@@ -351,7 +466,7 @@
 
     if (id === 'cpu-cooler') {
       const cooler = AF.catalog.cpuCooler(config);
-      body.append(h('h3', {}, `CPU cooler · ${cooler.name}`));
+      body.append(editorHead('fan', '', cooler.name, `CPU cooler · ${cooler.type === 'aio' ? 'liquid' : cooler.type === 'tower' ? 'tower air cooler' : 'top-down air cooler'}`));
       if (cooler.type === 'aio') {
         body.append(h('p', { class: 'hint' }, 'AIO radiator fans are the case fans on the radiator slots. Select them in the view to edit.'));
       } else {
@@ -362,18 +477,19 @@
       }
     } else if (id === 'gpu-cooler') {
       const cooler = AF.catalog.gpuCooler(config);
-      body.append(h('h3', {}, `GPU cooler · ${cooler.name}`));
+      const gpuEntry = AF.catalog.byId(AF.catalog.GPUS, config.gpu.model);
+      body.append(editorHead('gpu', '', gpuEntry ? gpuEntry.name : 'Graphics card', `GPU cooler · ${cooler.name}`));
       body.append(field('Fan speed', slider(config.gpu.fanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.gpu.fanSpeed = v; }))));
     } else {
       const slot = st.layout.slots.find((s) => s.id === id);
       if (!slot) {
-        rootEl.append(h('div', { class: 'editor-empty' }, 'Click a fan slot, the CPU cooler or the GPU in the view to configure it.'));
+        rootEl.append(h('div', { class: 'editor-empty' }, h('div', { class: 'editor-icon' }, icon('target')), 'Click a fan slot, the CPU cooler or the GPU in the view to configure it.'));
         return;
       }
       const sc = AF.geometry.slotConfig(config, id);
       const panelName = D.PANELS[slot.panel].name;
-      body.append(h('h3', {}, `${panelName} slot ${slot.index + 1} · ${slot.size} mm`, slot.radiator ? h('span', { class: 'badge' }, `radiator ${config.cpu.aio.thickness} mm`) : null));
-      body.append(h('div', { class: 'hint' }, `${slot.panelType.name} panel`));
+      body.append(editorHead(sc.mode === 'empty' ? 'vent' : 'fan', sc.mode === 'empty' ? '' : sc.mode, `${panelName} slot ${slot.index + 1}`,
+        `${slot.size} mm · ${slot.panelType.name} panel`, slot.radiator ? h('span', { class: 'badge' }, `radiator ${config.cpu.aio.thickness} mm`) : null));
       if (!slot.available) {
         body.append(h('p', { class: 'warn-text' }, 'This panel is sealed. Change the panel type in Case settings to mount fans here.'));
         rootEl.append(body);
@@ -445,9 +561,9 @@
     const X = (q) => m.l + (q / maxQ) * (W - m.l - m.r);
     const Y = (p) => m.t + (1 - (p - minP) / (maxP - minP)) * (H - m.t - m.b);
     ctx.font = '20px Inter, Segoe UI, sans-serif';
-    ctx.strokeStyle = '#263241';
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#7d8ba0';
+    ctx.fillStyle = '#7d899b';
     for (let k = 0; k <= 4; k++) {
       const q = maxQ * k / 4;
       const p = minP + (maxP - minP) * k / 4;
@@ -482,26 +598,66 @@
       ctx.stroke();
       ctx.restore();
     };
-    line(full.pts, 'fan', 'rgba(63,167,255,0.35)', [8, 6], 2);
-    line(cur.pts, 'fan', '#3fa7ff', [], 3);
+    line(full.pts, 'fan', 'rgba(109,141,255,0.35)', [8, 6], 2);
+    line(cur.pts, 'fan', '#6d8dff', [], 3);
     const sys = [];
     for (let k = 0; k <= 80; k++) {
       const q = maxQ * k / 80;
       sys.push({ q, system: AF.physics.totalLoss(el, q) + (el.required || 0) });
     }
-    line(sys, 'system', '#ffb547', [], 2.5);
-    ctx.fillStyle = '#ffd54a';
+    line(sys, 'system', '#22d3ee', [], 2.5);
+    ctx.fillStyle = '#fde047';
     ctx.beginPath();
     ctx.arc(X(el.q), Y(el.developed), 7, 0, Math.PI * 2);
     ctx.fill();
     ctx.font = '19px Inter, Segoe UI, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#3fa7ff';
+    ctx.fillStyle = '#6d8dff';
     ctx.fillText('fan @ speed', W - m.r - 6, m.t + 22);
-    ctx.fillStyle = 'rgba(63,167,255,0.6)';
+    ctx.fillStyle = 'rgba(109,141,255,0.6)';
     ctx.fillText('fan @ 100%', W - m.r - 6, m.t + 46);
-    ctx.fillStyle = '#ffb547';
+    ctx.fillStyle = '#22d3ee';
     ctx.fillText('system (losses + case)', W - m.r - 6, m.t + 70);
+  }
+
+  function splitValue(text) {
+    const i = text.lastIndexOf(' ');
+    return i < 0 ? [text, ''] : [text.slice(0, i), text.slice(i + 1)];
+  }
+
+  function kpi(opts) {
+    const [value, unit] = Array.isArray(opts.value) ? opts.value : [opts.value, ''];
+    return h('div', { class: `kpi ${opts.tone || ''} ${opts.onclick ? 'clickable' : ''}`, onclick: opts.onclick, title: opts.title },
+      h('div', { class: 'kpi-label' }, icon(opts.icon), opts.label),
+      h('div', { class: 'kpi-value' }, value, unit ? h('small', {}, unit) : null),
+      h('div', { class: 'kpi-sub' }, opts.sub),
+      opts.bar != null ? h('div', { class: 'kpi-bar' }, h('div', { style: `width:${Math.max(2, Math.min(100, opts.bar * 100))}%` })) : null);
+  }
+
+  function tempTone(temp, limit) {
+    if (temp >= limit - 0.5) return 'bad';
+    if (temp >= limit - 12) return 'warn';
+    return 'good';
+  }
+
+  function renderKpis(rootEl, app) {
+    const st = app.state;
+    const fmt = app.fmt;
+    const air = st.air;
+    const th = st.displayThermal || st.mixed;
+    const P = AF.data.PHYSICS;
+    const pressure = air.pressure;
+    const pState = pressure > P.neutralPressurePa ? 'positive' : pressure < -P.neutralPressurePa ? 'negative' : 'neutral';
+    const [pv, pu] = splitValue(fmt.pressure(pressure));
+    const [fv, fu] = splitValue(fmt.flow(air.throughFlow));
+    const source = st.simStats && st.simStats.ready && st.simThermal ? 'CFD' : 'estimate';
+    const rise = st.simStats && st.simStats.ready ? st.simStats.meanT - st.config.ambient : th.caseRise;
+    rootEl.replaceChildren(
+      kpi({ icon: 'gauge', label: 'Pressure', value: [`${pressure >= 0 ? '+' : ''}${pv}`, pu], sub: `${pState[0].toUpperCase()}${pState.slice(1)} pressure`, tone: pState === 'positive' ? 'good' : pState === 'negative' ? 'warn' : 'info', onclick: () => app.showTab('results') }),
+      kpi({ icon: 'wind', label: 'Airflow', value: [fv, fu], sub: `${air.airChangesPerMinute.toFixed(0)} air changes / min`, tone: air.airChangesPerMinute < 30 ? 'warn' : 'info', onclick: () => app.showTab('results') }),
+      kpi({ icon: 'cpu', label: 'CPU', value: [th.cpu.temp.toFixed(0), '°C'], sub: `${th.cpu.power.toFixed(0)} W${th.cpu.throttled ? ' · throttling' : ''} · ${source}`, tone: tempTone(th.cpu.temp, st.config.cpu.tjmax), bar: th.cpu.temp / st.config.cpu.tjmax, onclick: () => app.select('cpu-cooler'), title: `Limit ${st.config.cpu.tjmax} °C` }),
+      kpi({ icon: 'gpu', label: 'GPU', value: [th.gpu.temp.toFixed(0), '°C'], sub: `${th.gpu.power.toFixed(0)} W${th.gpu.throttled ? ' · throttling' : ''} · ${source}`, tone: tempTone(th.gpu.temp, st.config.gpu.tmax), bar: th.gpu.temp / st.config.gpu.tmax, onclick: () => app.select('gpu-cooler'), title: `Limit ${st.config.gpu.tmax} °C` }),
+      kpi({ icon: 'thermo', label: 'Case air', value: [`+${rise.toFixed(1)}`, '°C'], sub: `above ${st.config.ambient} °C room`, tone: rise > 12 ? 'bad' : rise > 7 ? 'warn' : 'good' }));
   }
 
   function renderResults(rootEl, app) {
@@ -516,23 +672,22 @@
 
     const pressure = air.pressure;
     const state = pressure > P.neutralPressurePa ? 'Positive' : pressure < -P.neutralPressurePa ? 'Negative' : 'Neutral';
-    const gaugePos = 50 + Math.max(-48, Math.min(48, Math.sign(pressure) * Math.log10(1 + Math.abs(pressure)) * 30));
-    rootEl.append(h('div', { class: `card pressure ${state.toLowerCase()}` },
-      h('div', { class: 'card-title' }, 'Case pressure'),
-      h('div', { class: 'big' }, `${pressure >= 0 ? '+' : ''}${fmt.pressure(pressure)}`, h('span', { class: 'tag' }, state)),
+    const gaugePos = 50 + Math.max(-47, Math.min(47, Math.sign(pressure) * Math.log10(1 + Math.abs(pressure)) * 30));
+    rootEl.append(h('div', { class: 'card' },
+      h('div', { class: 'card-title' }, 'Case pressure', h('span', { class: 'muted' }, 'inside vs. room')),
+      h('div', { class: 'pressure-value' }, `${pressure >= 0 ? '+' : ''}${fmt.pressure(pressure)}`, h('span', { class: `tag ${state.toLowerCase()}` }, state)),
       h('div', { class: 'gauge' }, h('div', { class: 'gauge-mark', style: `left:${gaugePos}%` })),
       h('div', { class: 'gauge-labels' }, h('span', {}, 'negative'), h('span', {}, 'neutral'), h('span', {}, 'positive'))));
 
-    const flowRows = [
-      ['Intake fans', fmt.flow(air.fanIn)],
-      ['Exhaust fans', fmt.flow(air.fanOut)],
-      ['Passive in (gaps/vents)', fmt.flow(air.passiveIn)],
-      ['Passive out (gaps/vents)', fmt.flow(air.passiveOut)],
-      ['Total throughput', fmt.flow(air.throughFlow)],
-      ['Air changes', `${air.airChangesPerMinute.toFixed(0)} / min`],
-    ];
+    const stat = (label, value) => h('div', { class: 'stat' }, h('div', { class: 'stat-label' }, label), h('div', { class: 'stat-value' }, value));
     rootEl.append(h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'Airflow balance'),
-      h('table', { class: 'kv' }, h('tbody', {}, flowRows.map(([k, v]) => h('tr', {}, h('td', {}, k), h('td', {}, v)))))));
+      h('div', { class: 'stat-grid' },
+        stat('Intake fans', fmt.flow(air.fanIn)),
+        stat('Exhaust fans', fmt.flow(air.fanOut)),
+        stat('Passive in', fmt.flow(air.passiveIn)),
+        stat('Passive out', fmt.flow(air.passiveOut)),
+        stat('Throughput', fmt.flow(air.throughFlow)),
+        stat('Air changes', `${air.airChangesPerMinute.toFixed(0)} / min`))));
 
     const ready = stats && stats.ready;
     const progress = stats ? Math.round(stats.progress * 100) : 0;
@@ -553,26 +708,43 @@
           tRow('GPU air in', fmt.temp(mixed.gpu.inlet), simCol((t) => fmt.temp(t.gpu.inlet))),
           tRow('GPU', gpuT(mixed), simCol(gpuT), (sim || mixed).gpu.throttled),
           tRow('GPU power', `${mixed.gpu.power.toFixed(0)} W`, simCol((t) => `${t.gpu.power.toFixed(0)} W`)))),
-      h('div', { class: 'hint' }, 'Well-mixed assumes uniform case air (conservative). The CFD column uses the local air temperature at each cooler inlet from the flow simulation.')));
+      h('div', { class: 'hint' }, 'Well-mixed assumes uniform case air (conservative). CFD uses the local air temperature at each cooler inlet.')));
 
+    const modePill = (mode) => h('span', { class: `mode-pill ${mode}` }, mode);
     const fanRows = air.elements.filter((e) => e.kind !== 'vent' || Math.abs(e.q) > 1e-6).map((e) => {
       const mode = e.kind === 'vent' ? (e.inflow > 0 ? 'passive in' : 'passive out') : e.dir > 0 ? 'intake' : 'exhaust';
       const eff = e.fans.length ? `${Math.round(e.q / Math.max(e.free, 1e-9) * 100)}%` : '';
       return h('tr', { class: `clickable ${st.selection === e.id ? 'sel' : ''} ${e.stalled ? 'hot' : ''}`, onclick: () => app.select(e.id) },
-        h('td', {}, e.label), h('td', { class: `mode ${mode.replace(' ', '-')}` }, mode), h('td', {}, fmt.flow(Math.abs(e.q))), h('td', {}, eff));
+        h('td', {}, e.label), h('td', {}, modePill(mode)), h('td', {}, fmt.flow(Math.abs(e.q))), h('td', {}, eff));
     });
     const coolerRows = [];
-    if (air.coolers.cpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('cpu-cooler') }, h('td', {}, 'CPU cooler'), h('td', { class: 'mode internal' }, 'internal'), h('td', {}, fmt.flow(air.coolers.cpu.q)), h('td', {}, `${Math.round(air.coolers.cpu.q / air.coolers.cpu.free * 100)}%`)));
-    if (air.coolers.gpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('gpu-cooler') }, h('td', {}, 'GPU fans'), h('td', { class: 'mode internal' }, 'internal'), h('td', {}, fmt.flow(air.coolers.gpu.total)), h('td', {}, `${Math.round(air.coolers.gpu.q / air.coolers.gpu.free * 100)}%`)));
-    rootEl.append(h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'Fans & openings'),
+    if (air.coolers.cpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('cpu-cooler') }, h('td', {}, 'CPU cooler'), h('td', {}, modePill('internal')), h('td', {}, fmt.flow(air.coolers.cpu.q)), h('td', {}, `${Math.round(air.coolers.cpu.q / air.coolers.cpu.free * 100)}%`)));
+    if (air.coolers.gpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('gpu-cooler') }, h('td', {}, 'GPU fans'), h('td', {}, modePill('internal')), h('td', {}, fmt.flow(air.coolers.gpu.total)), h('td', {}, `${Math.round(air.coolers.gpu.q / air.coolers.gpu.free * 100)}%`)));
+    rootEl.append(h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'Fans & openings', h('span', { class: 'muted' }, 'click a row to edit')),
       h('table', { class: 'fans' }, h('thead', {}, h('tr', {}, h('th', {}, 'Where'), h('th', {}, 'Mode'), h('th', {}, 'Flow'), h('th', { title: 'Percentage of free-air flow' }, 'Eff.'))),
         h('tbody', {}, fanRows, coolerRows))));
-
-    const order = { error: 0, warn: 1, info: 2, good: 3 };
-    const notes = (st.notes || []).slice().sort((a, b) => order[a.level] - order[b.level]);
-    rootEl.append(h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'Analysis'),
-      h('ul', { class: 'notes' }, notes.map((n) => h('li', { class: n.level }, n.text)))));
   }
 
-  AF.ui = { h, createFormatter, buildConfigPanel, buildEditor, updateEditorDynamic, renderResults };
+  const NOTE_ICONS = { error: 'alert', warn: 'warn', info: 'info', good: 'check' };
+
+  function renderInsights(rootEl, badgeEl, app) {
+    const order = { error: 0, warn: 1, info: 2, good: 3 };
+    const notes = (app.state.notes || []).slice().sort((a, b) => order[a.level] - order[b.level]);
+    const count = (level) => notes.filter((n) => n.level === level).length;
+    const errors = count('error');
+    const warns = count('warn');
+    if (badgeEl) {
+      badgeEl.textContent = errors || warns || '';
+      badgeEl.className = `tab-badge ${errors || warns ? 'show' : ''} ${!errors && warns ? 'warn' : ''}`;
+    }
+    rootEl.replaceChildren(
+      h('div', { class: 'insight-summary' },
+        h('div', { class: 'insight-count error' }, h('b', {}, errors), h('span', {}, 'problems')),
+        h('div', { class: 'insight-count warn' }, h('b', {}, warns), h('span', {}, 'warnings')),
+        h('div', { class: 'insight-count good' }, h('b', {}, count('good') + count('info')), h('span', {}, 'notes'))),
+      h('ul', { class: 'notes' }, notes.map((n) => h('li', { class: `note ${n.level}` },
+        h('span', { class: 'note-icon' }, icon(NOTE_ICONS[n.level])), h('span', {}, n.text)))));
+  }
+
+  AF.ui = { h, icon, hydrateIcons, createFormatter, buildConfigPanel, buildEditor, updateEditorDynamic, renderResults, renderKpis, renderInsights };
 })(typeof window !== 'undefined' ? window : globalThis);

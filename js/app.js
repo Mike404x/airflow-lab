@@ -60,6 +60,8 @@
       sim: null,
       notes: [],
       selection: 'front-0',
+      panel: 'case',
+      tab: 'inspect',
       view: 'temperature',
       particles: true,
       running: true,
@@ -77,7 +79,11 @@
         status: document.getElementById('simStatus'),
         legend: document.getElementById('legend'),
         presets: document.getElementById('presetSelect'),
+        kpis: document.getElementById('kpis'),
+        insights: document.getElementById('insights'),
+        insightsBadge: document.getElementById('insightsBadge'),
       };
+      AF.ui.hydrateIcons(document);
       this.renderer = new AF.render.CaseRenderer(this.dom.canvas);
       this.state.config = loadConfig();
       for (const p of AF.data.PRESETS) this.dom.presets.append(AF.ui.h('option', { value: p.id }, p.name));
@@ -135,12 +141,19 @@
         document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('active', b === btn));
         this.updateLegend();
       }));
-      document.getElementById('chkParticles').addEventListener('change', (e) => { this.state.particles = e.target.checked; });
+      const particles = document.getElementById('chkParticles');
+      particles.addEventListener('click', () => {
+        this.state.particles = !this.state.particles;
+        particles.classList.toggle('active', this.state.particles);
+      });
       const playBtn = document.getElementById('btnPlay');
       playBtn.addEventListener('click', () => {
         this.state.running = !this.state.running;
-        playBtn.textContent = this.state.running ? 'Pause' : 'Run';
+        playBtn.dataset.icon = this.state.running ? 'pause' : 'play';
+        playBtn.title = this.state.running ? 'Pause simulation' : 'Resume simulation';
+        AF.ui.hydrateIcons(playBtn.parentElement);
       });
+      document.querySelectorAll('#rightTabs .tab').forEach((tab) => tab.addEventListener('click', () => this.showTab(tab.dataset.tab)));
       document.getElementById('btnRestart').addEventListener('click', () => {
         this.state.sim = null;
         this.recompute(false);
@@ -206,7 +219,20 @@
     select(id) {
       this.state.selection = id;
       AF.ui.buildEditor(this.dom.editor, this);
+      this.renderPanels();
+      this.showTab('inspect');
+    },
+
+    showTab(name) {
+      this.state.tab = name;
+      document.querySelectorAll('#rightTabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      document.querySelectorAll('.inspector .tab-body').forEach((b) => b.classList.toggle('active', b.dataset.panel === name));
+    },
+
+    renderPanels() {
+      AF.ui.renderKpis(this.dom.kpis, this);
       AF.ui.renderResults(this.dom.results, this);
+      AF.ui.renderInsights(this.dom.insights, this.dom.insightsBadge, this);
     },
 
     update(mutator, opts) {
@@ -273,7 +299,7 @@
       } else {
         AF.ui.updateEditorDynamic(this);
       }
-      AF.ui.renderResults(this.dom.results, this);
+      this.renderPanels();
       this.updateLegend();
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(st.config)); } catch (e) { console.warn(e); }
     },
@@ -327,14 +353,20 @@
           this.lastThermal = now;
           if (sim.spawnAge === undefined || sim.time - sim.spawnAge > 1) { sim.rebuildSpawns(); sim.spawnAge = sim.time; }
           this.refreshThermal();
-          AF.ui.renderResults(this.dom.results, this);
+          this.renderPanels();
           AF.ui.updateEditorDynamic(this);
           this.updateLegend();
         }
       }
       const stats = st.simStats;
       if (sim && stats) {
-        this.dom.status.textContent = `sim t = ${sim.time.toFixed(1)} s · grid ${sim.nx - 2}×${sim.ny - 2} (${sim.dxMm.toFixed(1)} mm) · ${stats.ready ? 'steady state' : `converging ${Math.round(stats.progress * 100)}%`}`;
+        const statusKey = `${st.running}|${stats.ready}|${Math.round(stats.progress * 100)}|${sim.time.toFixed(1)}`;
+        if (statusKey !== this.lastStatus) {
+          this.lastStatus = statusKey;
+          const state = !st.running ? 'paused' : stats.ready ? 'ok' : '';
+          const label = !st.running ? 'Paused' : stats.ready ? 'Steady state' : `Converging ${Math.round(stats.progress * 100)}%`;
+          this.dom.status.innerHTML = `<span class="live ${state}"></span>${label} · t = ${sim.time.toFixed(1)} s · ${sim.nx - 2}×${sim.ny - 2} grid`;
+        }
       }
       this.draw();
       requestAnimationFrame((t) => this.frame(t));

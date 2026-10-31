@@ -7,48 +7,74 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="logo"></span>Airflow Lab</div>
-    <select id="presetSelect" title="Example builds"></select>
-    <button id="btnLoadPreset" class="btn">Load preset</button>
-    <span class="spacer"></span>
-    <button id="btnExport" class="btn">Export</button>
-    <label class="btn">Import<input type="file" id="fileImport" accept="application/json,.json" hidden></label>
-    <button id="btnReset" class="btn ghost">Reset</button>
-  </header>
-  <main class="layout">
-    <aside id="configPanel" class="panel left"></aside>
-    <section class="stage">
-      <div class="toolbar">
-        <div class="segmented">
-          <button class="seg active" data-view="temperature">Temperature</button>
-          <button class="seg" data-view="speed">Air speed</button>
-          <button class="seg" data-view="none">Streamlines only</button>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8c0-3.4 1.2-6.3 3.6-6.3 2.6 0 2.4 4.1-.4 6.9M14.2 12c3.4 0 6.3 1.2 6.3 3.6 0 2.6-4.1 2.4-6.9-.4M12 14.2c0 3.4-1.2 6.3-3.6 6.3-2.6 0-2.4-4.1.4-6.9M9.8 12c-3.4 0-6.3-1.2-6.3-3.6 0-2.6 4.1-2.4 6.9.4"/></svg>
         </div>
-        <label class="check"><input type="checkbox" id="chkParticles" checked> Particles</label>
-        <span class="spacer"></span>
-        <select id="speedSelect" title="Simulation speed">
-          <option value="1">Real time</option>
-          <option value="4">4× faster</option>
-          <option value="max" selected>As fast as possible</option>
-        </select>
-        <button id="btnPlay" class="btn">Pause</button>
-        <button id="btnRestart" class="btn ghost">Restart CFD</button>
+        <div>
+          <div class="brand-name">Airflow Lab</div>
+          <div class="brand-sub">PC airflow &amp; thermal simulator</div>
+        </div>
       </div>
-      <div class="canvas-wrap">
-        <canvas id="caseCanvas"></canvas>
-        <div id="tooltip" class="tooltip"></div>
+      <div class="template-picker">
+        <span class="template-label">Template</span>
+        <select id="presetSelect" title="Example builds"></select>
+        <button id="btnLoadPreset" class="btn primary sm">Load</button>
       </div>
-      <div class="stage-footer">
-        <div id="legend" class="legend"></div>
-        <div id="simStatus" class="sim-status"></div>
+      <div class="topbar-actions">
+        <button id="btnExport" class="icon-btn" title="Export build as JSON" data-icon="download"></button>
+        <label class="icon-btn" title="Import build from JSON" data-icon="upload"><input type="file" id="fileImport" accept="application/json,.json" hidden></label>
+        <button id="btnReset" class="icon-btn" title="Reset to default build" data-icon="reset"></button>
       </div>
-    </section>
-    <aside class="panel right">
-      <div id="editor" class="editor"></div>
-      <div id="results"></div>
-    </aside>
-  </main>
+    </header>
+
+    <main class="layout">
+      <nav class="rail" id="rail"></nav>
+      <aside class="sidebar" id="configPanel"></aside>
+
+      <section class="stage">
+        <div class="kpis" id="kpis"></div>
+        <div class="viewport">
+          <canvas id="caseCanvas"></canvas>
+          <div class="float top-left">
+            <div class="segmented glass">
+              <button class="seg active" data-view="temperature">Temperature</button>
+              <button class="seg" data-view="speed">Air speed</button>
+              <button class="seg" data-view="none">Streamlines</button>
+            </div>
+            <button class="chip glass active" id="chkParticles" title="Show moving air particles"><span data-icon="sparkle"></span>Particles</button>
+          </div>
+          <div class="float top-right">
+            <div class="glass sim-controls">
+              <select id="speedSelect" title="Simulation speed">
+                <option value="1">Real time</option>
+                <option value="4">4×</option>
+                <option value="max" selected>Max speed</option>
+              </select>
+              <button id="btnPlay" class="icon-btn ghost" title="Pause simulation" data-icon="pause"></button>
+              <button id="btnRestart" class="icon-btn ghost" title="Restart CFD" data-icon="restart"></button>
+            </div>
+          </div>
+          <div class="float bottom-left"><div id="legend" class="legend glass"></div></div>
+          <div class="float bottom-right"><div id="simStatus" class="sim-status glass"></div></div>
+          <div id="tooltip" class="tooltip"></div>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <div class="tabs" id="rightTabs">
+          <button class="tab active" data-tab="inspect"><span data-icon="target"></span>Inspector</button>
+          <button class="tab" data-tab="results"><span data-icon="chart"></span>Results</button>
+          <button class="tab" data-tab="insights"><span data-icon="bulb"></span>Insights<span class="tab-badge" id="insightsBadge"></span></button>
+        </div>
+        <div class="tab-body active" data-panel="inspect"><div id="editor" class="editor"></div></div>
+        <div class="tab-body" data-panel="results"><div id="results"></div></div>
+        <div class="tab-body" data-panel="insights"><div id="insights"></div></div>
+      </aside>
+    </main>
+  </div>
   <script src="js/data.js"></script>
   <script src="js/catalog.js"></script>
   <script src="js/catalog-more.js"></script>
