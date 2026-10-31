@@ -33,6 +33,8 @@
     neutralPressurePa: 0.5,
     stagnantSpeed: 0.08,
     shroudHeight: 85,
+    shroudFrontGap: 40,
+    maxFrontSlots: 3,
     motherboardTopOffset: 18,
     motherboardRearOffset: 10,
     fanThickness: 25,
@@ -166,7 +168,7 @@
       case: {
         name: 'Mesh mid-tower',
         height: 470, depth: 450, width: 230,
-        formFactor: 'atx', shroud: true, pcieVented: true,
+        formFactor: 'atx', shroud: true, pcieVented: true, frontSlots: 3,
         panels: {
           front: { type: 'mesh', fanSize: 140 },
           top: { type: 'mesh', fanSize: 140 },
@@ -200,6 +202,9 @@
 
   const PRESETS = [
     preset('mesh-mid', 'Mesh mid-tower: 2 front intake, 1 rear exhaust', () => {}),
+    preset('mesh-mid-3front', 'Mesh mid-tower: 3 front intake, 1 rear exhaust', (c) => {
+      c.slots['front-2'] = slot('intake', 'arctic-p14', 0.7, 'nylon');
+    }),
     preset('mesh-mid-full', 'Mesh mid-tower: 3 front intake, rear + top exhaust', (c) => {
       c.slots['front-2'] = slot('intake', 'arctic-p14', 0.7, 'nylon');
       c.slots['top-1'] = slot('exhaust', 'arctic-p14', 0.6);

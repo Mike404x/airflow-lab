@@ -206,6 +206,21 @@
       this.recompute(true);
     },
 
+    fillFront() {
+      const cfg = this.state.config;
+      const front = this.state.layout.slots.filter((s) => s.panel === 'front' && s.available);
+      if (!front.length) return;
+      const existing = front.map((s) => AF.geometry.slotConfig(cfg, s.id)).find((sc) => sc.mode !== 'empty');
+      const size = cfg.case.panels.front.fanSize;
+      const template = existing
+        ? Object.assign({}, existing, { mode: 'intake' })
+        : { mode: 'intake', fan: (AF.data.FANS.find((f) => f.size === size) || AF.data.FANS[0]).id, speed: 0.7, filter: 'nylon' };
+      for (const s of front) {
+        if (AF.geometry.slotConfig(cfg, s.id).mode === 'empty') cfg.slots[s.id] = clone(template);
+      }
+      this.recompute(true);
+    },
+
     fillRadiatorFans() {
       const comps = this.state.layout.components;
       if (!comps.radiator) return;

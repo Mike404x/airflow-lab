@@ -104,7 +104,8 @@
 
       if (comps.shroud) {
         const js = this.cellY(comps.shroud.y);
-        for (let j = js; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) type[this.id(i, j)] = SOLID;
+        const iEnd = this.cellX(comps.shroud.x1 - 1e-6);
+        for (let j = js; j < ny - 1; j++) for (let i = 1; i <= iEnd; i++) type[this.id(i, j)] = SOLID;
       }
 
       const gpu = comps.gpu;

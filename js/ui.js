@@ -137,6 +137,12 @@
       h('div', { class: 'row' },
         checkbox(c.shroud, (v) => update((cfg) => { cfg.case.shroud = v; }), 'PSU shroud'),
         checkbox(c.pcieVented, (v) => update((cfg) => { cfg.case.pcieVented = v; }), 'Vented PCIe slot covers')),
+      field('Front fan mounts', select(
+        Array.from({ length: AF.geometry.frontSlotCapacity(config) }, (_, k) => ({ value: k + 1, label: `${k + 1} × ${c.panels.front.fanSize} mm` })),
+        Math.min(c.frontSlots == null ? 3 : c.frontSlots, AF.geometry.frontSlotCapacity(config)),
+        (v) => update((cfg) => { cfg.case.frontSlots = +v; })),
+        `Up to ${AF.geometry.frontSlotCapacity(config)} fit in a ${c.height} mm tall case. The shroud stops short of the front fans so the bottom fan feeds the main chamber.`),
+      h('button', { class: 'btn small', onclick: () => app.fillFront() }, 'Fill all front mounts with intake fans'),
       h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan size'))), h('tbody', {}, panelRows)),
       h('div', { class: 'hint' }, 'Click a fan slot in the view to set its fan. Empty slots on open panels work as passive vents.')));
 

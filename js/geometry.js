@@ -14,6 +14,17 @@
     return config.case.shroud ? config.case.height - P.shroudHeight : config.case.height;
   }
 
+  function frontSlotCapacity(config) {
+    const P = AF.data.PHYSICS;
+    const size = config.case.panels.front.fanSize;
+    return fitCount(config.case.height - 2 * P.panelEdge, size, P.slotGap, size >= 200 ? 2 : P.maxFrontSlots);
+  }
+
+  function frontSlotCount(config) {
+    const requested = config.case.frontSlots == null ? AF.data.PHYSICS.maxFrontSlots : config.case.frontSlots;
+    return Math.max(0, Math.min(requested, frontSlotCapacity(config)));
+  }
+
   function buildSlots(config) {
     const P = AF.data.PHYSICS;
     const c = config.case;
@@ -26,7 +37,7 @@
     const slots = [];
 
     const frontSize = panels.front.fanSize;
-    const frontCount = fitCount(usableBottom - 2 * edge, frontSize, gap, maxSlotsFor(frontSize));
+    const frontCount = frontSlotCount(config);
     for (let k = 0; k < frontCount; k++) {
       slots.push({
         id: `front-${k}`, panel: 'front', index: k, size: frontSize,
@@ -123,7 +134,11 @@
       type: gpuCooler.type,
     };
 
-    const shroud = c.shroud ? { y: c.height - P.shroudHeight } : null;
+    const frontBottom = Math.max(0, ...slots.filter((s) => s.panel === 'front').map((s) => s.cy + s.size / 2));
+    const frontReach = frontBottom > c.height - P.shroudHeight
+      ? P.fanThickness + P.shroudFrontGap + (config.cpu.cooler === 'aio' && config.cpu.aio.panel === 'front' ? config.cpu.aio.thickness : 0)
+      : 0;
+    const shroud = c.shroud ? { y: c.height - P.shroudHeight, x1: c.depth - frontReach } : null;
     const pcieTop = pcbTop - 4;
     const pcieBottom = Math.min(pcbTop + P.pcieSlotCount * P.pcieSlotPitchMm, shroudTop(config));
     const radSlots = radiatorSlots(config, slots);
@@ -178,7 +193,7 @@
     return { slots, components, issues, shroudTop: shroudTop(config) };
   }
 
-  AF.geometry = { layout, slotConfig };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);

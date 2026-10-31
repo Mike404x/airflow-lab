@@ -226,12 +226,13 @@
 
       if (comps.shroud) {
         const y = comps.shroud.y;
+        const sw = comps.shroud.x1;
         ctx.fillStyle = '#1a222d';
-        ctx.fillRect(this.X(0), this.Y(y), this.S(config.case.depth), this.S(config.case.height - y));
+        ctx.fillRect(this.X(0), this.Y(y), this.S(sw), this.S(config.case.height - y));
         const h = config.case.height - y;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(this.X(0), this.Y(y), this.S(config.case.depth), this.S(h));
+        ctx.rect(this.X(0), this.Y(y), this.S(sw), this.S(h));
         ctx.clip();
         ctx.strokeStyle = '#2a3442';
         ctx.lineWidth = 1;
@@ -244,7 +245,7 @@
         ctx.restore();
         ctx.fillStyle = COLORS.dim;
         ctx.textAlign = 'center';
-        ctx.fillText('PSU shroud (isolated)', this.X(config.case.depth / 2), this.Y(y + (config.case.height - y) / 2) + 4);
+        ctx.fillText('PSU shroud (isolated)', this.X(sw / 2), this.Y(y + (config.case.height - y) / 2) + 4);
       }
 
       const g = comps.gpu;
