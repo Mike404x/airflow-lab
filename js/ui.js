@@ -514,17 +514,35 @@
           onclick: () => setCf({ dir: d, mount: Object.assign({}, cf.mount, { anchor: d === cf.dir ? cf.mount.anchor : null }) }),
         }, label)))));
       }
+      const spots = G.customFanSpots(config, st.layout, cf.size, cf);
+      const currentSpot = spots.find((sp) => !sp.snap.blocked && Math.abs(sp.snap.x - cf.x) < 1 && Math.abs(sp.snap.y - cf.y) < 1 && sp.snap.dir === cf.dir);
+      const posSelect = h('select', { onchange: (e) => app.placeCustomFan(id, e.target.value) });
+      if (!currentSpot) {
+        const opt = h('option', { value: '' }, `Current position (${cf.where.toLowerCase()})`);
+        opt.selected = true;
+        opt.disabled = true;
+        posSelect.append(opt);
+      }
+      for (const sp of spots) {
+        const opt = h('option', { value: sp.id }, sp.reason ? `${sp.label} (${sp.reason})` : sp.label);
+        if (sp.snap.blocked) opt.disabled = true;
+        if (currentSpot && currentSpot.id === sp.id) opt.selected = true;
+        posSelect.append(opt);
+      }
+      body.append(field('Position', posSelect));
       const sizes = Array.from(new Set(D.FANS.map((f) => f.size))).sort((a, b) => a - b);
-      body.append(h('div', { class: 'grid2' },
-        field('Size', select(sizes.map((v) => ({ value: v, label: `${v} mm` })), cf.size, (v) => setCf({ size: +v, fan: (D.FANS.find((f) => f.size === +v) || D.FANS[0]).id }))),
-        field('Speed', slider(cf.speed, 0, 1, 0.01, pct, (v) => setCf({ speed: v }, true)))));
+      body.append(field('Fan size (mm)', h('div', { class: 'segmented size-seg' }, ...sizes.map((v) => h('button', {
+        class: `seg ${cf.size === v ? 'active' : ''}`,
+        onclick: () => app.resizeCustomFan(id, v),
+      }, `${v}`)))));
+      body.append(field('Speed', slider(cf.speed, 0, 1, 0.01, pct, (v) => setCf({ speed: v }, true))));
       body.append(field('Fan model', groupedSelect(fanOptions(cf.size), cf.fan, (v) => setCf({ fan: v }))));
       if (cf.fan === 'custom') body.append(customFanFields(cf.custom, (v) => setCf({ custom: v })));
       if (cf.mode === 'intake') body.append(field('Dust filter', select(Object.entries(D.FILTERS).map(([v, f]) => ({ value: v, label: f.name })), cf.filter, (v) => setCf({ filter: v }))));
       body.append(h('div', { class: 'row' },
         h('button', { class: 'btn', onclick: () => app.rotateCustomFan(id) }, icon('rotate'), cf.mount.type === 'wall' ? 'Flip' : 'Rotate'),
         h('button', { class: 'btn danger', onclick: () => app.removeCustomFan(id) }, icon('trash'), 'Remove')));
-      body.append(h('div', { class: 'hint' }, 'Drag the fan in the view. It snaps to the case walls (including the PCIe slot area), under the GPU, in front of the CPU cooler and onto empty fan slots. Shortcuts: R rotates or flips, Delete removes.'));
+      body.append(h('div', { class: 'hint' }, 'Pick a position and size above. Positions where the selected size does not fit are disabled. Shortcuts: R rotates or flips, Delete removes.'));
     } else if (id === 'gpu-cooler') {
       const cooler = AF.catalog.gpuCooler(config);
       const gpuEntry = AF.catalog.byId(AF.catalog.GPUS, config.gpu.model);
@@ -553,6 +571,11 @@
         onclick: () => setSlot({ mode: m }),
       }, m === 'empty' ? (slot.panelType.openRatio > 0 ? 'Open vent' : 'Empty') : m[0].toUpperCase() + m.slice(1))));
       body.append(modes);
+      const panelSizes = AF.catalog.supportedSizes(config, slot.panel);
+      body.append(field('Fan size (mm)', h('div', { class: 'segmented size-seg' }, ...panelSizes.map((v) => h('button', {
+        class: `seg ${slot.size === v ? 'active' : ''}`,
+        onclick: () => app.setPanelFanSize(slot.panel, v),
+      }, `${v}`))), panelSizes.length > 1 ? `Applies to every ${panelName.toLowerCase()} slot. Sizes this panel supports.` : `This panel only takes ${panelSizes[0]} mm fans.`));
       if (sc.mode !== 'empty') {
         const fanValue = sc.fan === 'custom' || D.FANS.some((f) => f.id === sc.fan && f.size === slot.size) ? sc.fan : (D.FANS.find((f) => f.size === slot.size) || {}).id;
         body.append(field('Fan model', groupedSelect(fanOptions(slot.size), fanValue, (v) => setSlot({ fan: v }))));
@@ -563,7 +586,6 @@
       }
       body.append(h('div', { class: 'row' },
         h('button', { class: 'btn small', onclick: () => app.applyToPanel(id) }, `Copy to all ${panelName.toLowerCase()} slots`)));
-      if (sc.mode !== 'empty') body.append(h('div', { class: 'hint' }, 'Tip: drag this fan in the view to move it to another slot or to a custom spot.'));
     }
     rootEl.append(body, dynamic);
     updateEditorDynamic(app);

@@ -26,14 +26,15 @@ Pick real parts instead of typing dimensions. Every picker has a search box, and
 - **Case**: height/depth/width, PSU shroud, vented PCIe covers, number of front fan mounts (1–3, limited by case height). The shroud stops short of the front fans, so a bottom front fan feeds the main chamber. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.
 - **Motherboard**: layout presets (ATX with the GPU in slot 1/2/3, ATX with a low socket, E-ATX, Micro-ATX, Mini-ITX), plus editable board size, CPU socket position, slot-1 position and which PCIe slot holds the GPU. This moves the CPU cooler and GPU in both the flow and thermal models. There are checks for board fit, the cooler overhanging the GPU slot, and the cooler hitting the top fans.
 - **Fan slots**: click any slot in the view. Set it to intake, exhaust or open vent, and choose the fan model (spec-sheet presets or a custom CFM / mmH₂O / RPM), the speed and the dust filter. Use "Copy to all slots" to fill a whole panel.
-- **Custom fan placement**: drag any fan in the view, or press **Add fan**. Fans snap to:
-  - the case walls, including the rear **PCIe slot area** below the GPU, where they become real intakes/exhausts in the pressure network and CFD;
-  - **under the GPU**, blowing up into its fans;
-  - **in front of the CPU cooler**;
-  - empty or occupied **fan slots** (moves or swaps the fans);
-  - anywhere else on a 5 mm grid, as an internal fan that moves air inside the case.
+- **Fan sizes**: every fan slot's inspector has a size selector (mm) listing the sizes that panel supports. Changing it refits the panel's slots and switches fans to a matching model.
+- **Extra fans**: **Add fan** creates a fan you position from a list of mounting spots:
+  - under the GPU;
+  - the rear **PCIe slot area** below the GPU, as a real intake/exhaust in the pressure network and CFD;
+  - in front of the CPU cooler;
+  - on the PSU shroud;
+  - the middle of the case.
 
-  A ghost preview shows the snap target while dragging. Placements that do not fit (for example a 120 mm fan below a thick GPU) are refused with the reason. **R** rotates or flips the selected fan and **Delete** removes it. Overlaps with the GPU, cooler, shroud, other fans or slot fans are flagged.
+  Spots where the chosen size does not fit (for example 120 mm below a thick GPU) are disabled with the reason. **R** rotates or flips the selected fan and **Delete** removes it.
 - **CPU**: processor presets (power, die resistance, Tjmax), stock, low-profile, single-tower, dual-tower or AIO cooler. For tower coolers you can set the fan model, the fan count (push-pull) and the speed. For AIOs you can set the radiator location, size, thickness and push-pull.
 - **GPU**: presets, board power, length, slot thickness, and the cooler type (open-air dual/triple flow-through, or blower), with fan count and speed.
 - **Environment**: room temperature, other heat (VRM, RAM, SSD), CFM or m³/h, Pa or mmH₂O.

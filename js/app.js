@@ -82,7 +82,6 @@
         kpis: document.getElementById('kpis'),
         insights: document.getElementById('insights'),
         insightsBadge: document.getElementById('insightsBadge'),
-        toast: document.getElementById('toast'),
       };
       AF.ui.hydrateIcons(document);
       this.renderer = new AF.render.CaseRenderer(this.dom.canvas);
@@ -170,34 +169,10 @@
         const r = canvas.getBoundingClientRect();
         return { px: e.clientX - r.left, py: e.clientY - r.top };
       };
-      canvas.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
+      canvas.addEventListener('click', (e) => {
         const { px, py } = local(e);
         const id = this.renderer.hitTest(px, py);
-        this.pointer = { id, px, py, source: this.dragSourceFor(id) };
-      });
-      window.addEventListener('mousemove', (e) => {
-        const ptr = this.pointer;
-        if (!ptr || !ptr.source) return;
-        const { px, py } = local(e);
-        if (!this.state.drag && Math.hypot(px - ptr.px, py - ptr.py) < 5) return;
-        const p = this.renderer.toMm(px, py);
-        const snap = AF.geometry.snapCustomFan(this.state.config, this.state.layout, p.x, p.y, ptr.source.size, ptr.source.cf);
-        this.state.drag = { sourceId: ptr.source.id, moved: true, snap, size: ptr.source.size };
-        this.dom.tooltip.style.display = 'none';
-        canvas.style.cursor = 'grabbing';
-      });
-      window.addEventListener('mouseup', () => {
-        const ptr = this.pointer;
-        this.pointer = null;
-        if (!ptr) return;
-        const drag = this.state.drag;
-        this.state.drag = null;
-        if (drag && drag.moved) {
-          this.dropFan(ptr.source, drag.snap);
-          return;
-        }
-        if (ptr.id) this.select(ptr.id);
+        if (id) this.select(id);
       });
       window.addEventListener('keydown', (e) => {
         if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) return;
@@ -207,7 +182,6 @@
         if (e.key === 'Delete' || e.key === 'Backspace') { this.removeCustomFan(id); e.preventDefault(); }
       });
       canvas.addEventListener('mousemove', (e) => {
-        if (this.state.drag) return;
         const { px, py } = local(e);
         const r = canvas.getBoundingClientRect();
         const html = this.tooltipFor(px, py);
@@ -218,7 +192,7 @@
         tip.style.left = `${Math.min(px + 14, r.width - tip.offsetWidth - 4)}px`;
         tip.style.top = `${Math.min(py + 14, r.height - tip.offsetHeight - 4)}px`;
         const hoverId = this.renderer.hitTest(px, py);
-        canvas.style.cursor = this.dragSourceFor(hoverId) ? 'grab' : hoverId ? 'pointer' : 'crosshair';
+        canvas.style.cursor = hoverId ? 'pointer' : 'crosshair';
       });
       canvas.addEventListener('mouseleave', () => { this.dom.tooltip.style.display = 'none'; });
     },
@@ -237,7 +211,7 @@
           const cf = st.layout.customFans.find((f) => f.id === id);
           const el = st.air.elements.find((e) => e.id === id) || (st.air.internal || []).find((e) => e.id === id);
           if (!cf) return null;
-          return `<b>${cf.label}</b> · ${cf.size} mm<br>${cf.where} · ${cf.mode}${el ? `: ${fmt.flow(Math.abs(el.q))}` : ''}<br>Drag to move · R rotate · Del remove`;
+          return `<b>${cf.label}</b> · ${cf.size} mm<br>${cf.where} · ${cf.mode}${el ? `: ${fmt.flow(Math.abs(el.q))}` : ''}<br>Click to edit · R rotate · Del remove`;
         }
         const el = st.air.elements.find((e) => e.id === id);
         const slot = st.layout.slots.find((s) => s.id === id);
@@ -246,7 +220,7 @@
         const head = `<b>${AF.data.PANELS[slot.panel].name} ${slot.index + 1}</b> · ${slot.size} mm`;
         if (!el) return `${head}<br>${slot.available ? 'Sealed slot' : 'Panel is sealed'}<br>Click to edit`;
         if (el.kind === 'vent') return `${head}<br>Open vent: ${fmt.flow(Math.abs(el.q))} ${el.inflow > 0 ? 'in' : 'out'}<br>Click to add a fan`;
-        return `${head}<br>${sc.mode}: ${fmt.flow(Math.abs(el.q))} (${Math.round(el.q / el.free * 100)}% of free air)<br>Click to edit · drag to move`;
+        return `${head}<br>${sc.mode}: ${fmt.flow(Math.abs(el.q))} (${Math.round(el.q / el.free * 100)}% of free air)<br>Click to edit`;
       }
       const sim = st.sim;
       if (!sim) return null;
@@ -284,88 +258,41 @@
       this.recompute(!(opts && opts.live));
     },
 
-    dragSourceFor(id) {
-      if (!id) return null;
-      const cfg = this.state.config;
-      if (id.startsWith('cf-')) {
-        const cf = (cfg.customFans || []).find((f) => f.id === id);
-        return cf ? { kind: 'custom', id, size: cf.size, cf } : null;
-      }
-      const slot = this.state.layout.slots.find((s) => s.id === id);
-      if (!slot || slot.axis === 'z' || !slot.available) return null;
-      const sc = AF.geometry.slotConfig(cfg, id);
-      return sc.mode === 'empty' ? null : { kind: 'slot', id, size: slot.size, slotCfg: sc };
-    },
-
     nextCustomFanId() {
       const ids = (this.state.config.customFans || []).map((f) => +String(f.id).slice(3) || 0);
       return `cf-${Math.max(0, ...ids) + 1}`;
     },
 
-    toast(text, tone) {
-      const el = this.dom.toast;
-      el.textContent = text;
-      el.className = `toast glass show ${tone || ''}`;
-      clearTimeout(this.toastTimer);
-      this.toastTimer = setTimeout(() => { el.className = 'toast glass'; }, 3200);
-    },
-
-    dropFan(source, snap) {
-      if (snap.blocked) {
-        this.toast(snap.label.split(' · ').slice(-1)[0].replace(/^./, (c) => c.toUpperCase()), 'bad');
-        return;
-      }
-      const cfg = this.state.config;
-      cfg.customFans = cfg.customFans || [];
-      const G = AF.geometry;
-      const fanOf = (src) => (src.kind === 'slot'
-        ? { fan: src.slotCfg.fan, speed: src.slotCfg.speed, filter: src.slotCfg.filter, custom: src.slotCfg.custom, mode: src.slotCfg.mode }
-        : { fan: src.cf.fan, speed: src.cf.speed, filter: src.cf.filter, custom: src.cf.custom, mode: null });
-      const moving = fanOf(source);
-      if (snap.kind === 'slot') {
-        if (source.kind === 'slot' && source.id === snap.slotId) return;
-        const slot = this.state.layout.slots.find((s) => s.id === snap.slotId);
-        const target = G.slotConfig(cfg, snap.slotId);
-        const defaultMode = slot.panel === 'front' || slot.panel === 'bottom' ? 'intake' : 'exhaust';
-        const samePanel = source.kind === 'slot' && source.id.split('-')[0] === slot.panel;
-        cfg.slots[snap.slotId] = { mode: samePanel ? moving.mode : defaultMode, fan: moving.fan, speed: moving.speed, filter: moving.filter || 'none', custom: moving.custom };
-        if (source.kind === 'slot') {
-          cfg.slots[source.id] = target.mode !== 'empty' ? target : { mode: 'empty' };
-        } else {
-          const idx = cfg.customFans.findIndex((f) => f.id === source.id);
-          if (target.mode !== 'empty') Object.assign(cfg.customFans[idx], { fan: target.fan, speed: target.speed, filter: target.filter, custom: target.custom });
-          else cfg.customFans.splice(idx, 1);
-        }
-        this.state.selection = snap.slotId;
-      } else {
-        let dir = snap.dir;
-        const sourcePanel = source.kind === 'slot' ? source.id.split('-')[0] : null;
-        if (snap.mount.type === 'wall' && moving.mode && sourcePanel === snap.mount.panel) dir = moving.mode === 'intake' ? G.INWARD[snap.mount.panel] : G.OPPOSITE[G.INWARD[snap.mount.panel]];
-        const placed = { x: snap.x, y: snap.y, dir, mount: snap.mount };
-        if (source.kind === 'custom') {
-          Object.assign(cfg.customFans.find((f) => f.id === source.id), placed);
-          this.state.selection = source.id;
-        } else {
-          const id = this.nextCustomFanId();
-          cfg.customFans.push(Object.assign({ id, size: source.size, fan: moving.fan, speed: moving.speed, filter: moving.filter || 'none', custom: moving.custom }, placed));
-          cfg.slots[source.id] = { mode: 'empty' };
-          this.state.selection = id;
-        }
-      }
-      this.recompute(true);
-      this.showTab('inspect');
-    },
-
     addCustomFan() {
       const cfg = this.state.config;
       cfg.customFans = cfg.customFans || [];
-      const g = this.state.layout.components.gpu;
-      const snap = AF.geometry.snapCustomFan(cfg, this.state.layout, Math.min(g.length, cfg.case.depth) * 0.6, g.sinkBottom + 50, 120, null);
+      const snap = AF.geometry.customFanSpots(cfg, this.state.layout, 120, null).find((sp) => sp.id === 'gpu').snap;
       const id = this.nextCustomFanId();
-      cfg.customFans.push({ id, size: 120, fan: 'arctic-p12', speed: 0.7, filter: 'none', x: snap.x, y: snap.y, dir: snap.dir, mount: snap.mount });
+      cfg.customFans.push({ id, size: 120, fan: 'arctic-p12', speed: 0.7, filter: 'none', x: snap.x, y: snap.y, dir: snap.dir, mount: snap.mount, spot: 'gpu' });
       this.state.selection = id;
       this.recompute(true);
       this.showTab('inspect');
+    },
+
+    placeCustomFan(id, spotId) {
+      const cf = (this.state.config.customFans || []).find((f) => f.id === id);
+      if (!cf) return;
+      const spot = AF.geometry.customFanSpots(this.state.config, this.state.layout, cf.size, cf).find((s) => s.id === spotId);
+      if (!spot || spot.snap.blocked) return;
+      Object.assign(cf, { x: spot.snap.x, y: spot.snap.y, dir: spot.snap.dir, mount: spot.snap.mount, spot: spotId });
+      this.recompute(true);
+    },
+
+    resizeCustomFan(id, size) {
+      const cfg = this.state.config;
+      const cf = (cfg.customFans || []).find((f) => f.id === id);
+      if (!cf) return;
+      cf.size = size;
+      const spec = AF.data.FANS.find((f) => f.id === cf.fan);
+      if (cf.fan !== 'custom' && (!spec || spec.size !== size)) cf.fan = (AF.data.FANS.find((f) => f.size === size) || AF.data.FANS[0]).id;
+      const spot = cf.spot && AF.geometry.customFanSpots(cfg, this.state.layout, size, cf).find((s) => s.id === cf.spot);
+      if (spot && !spot.snap.blocked) Object.assign(cf, { x: spot.snap.x, y: spot.snap.y, dir: spot.snap.dir, mount: spot.snap.mount });
+      this.recompute(true);
     },
 
     rotateCustomFan(id) {
@@ -376,6 +303,7 @@
         const order = ['up', 'right', 'down', 'left'];
         cf.dir = order[(order.indexOf(cf.dir) + 1) % 4];
         cf.mount = { type: 'internal' };
+        cf.spot = null;
       }
       this.recompute(true);
     },
@@ -385,6 +313,19 @@
       cfg.customFans = (cfg.customFans || []).filter((f) => f.id !== id);
       this.state.selection = null;
       this.recompute(true);
+    },
+
+    setPanelFanSize(panel, size) {
+      const cfg = this.state.config;
+      cfg.case.panels[panel].fanSize = size;
+      for (const [id, sc] of Object.entries(cfg.slots)) {
+        if (!id.startsWith(`${panel}-`) || sc.fan === 'custom') continue;
+        const spec = AF.data.FANS.find((f) => f.id === sc.fan);
+        if (!spec || spec.size !== size) sc.fan = (AF.data.FANS.find((f) => f.size === size) || AF.data.FANS[0]).id;
+      }
+      this.recompute(true);
+      const slots = this.state.layout.slots.filter((s) => s.panel === panel);
+      if (slots.length && !slots.some((s) => s.id === this.state.selection)) this.select(slots[0].id);
     },
 
     applyToPanel(id) {

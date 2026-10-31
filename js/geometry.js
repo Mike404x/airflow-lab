@@ -401,6 +401,27 @@
     };
   }
 
+  function customFanSpots(config, layoutResult, size, current) {
+    const comps = layoutResult.components;
+    const c = config.case;
+    const g = comps.gpu;
+    const snapAt = (x, y, prev) => snapCustomFan(config, layoutResult, x, y, size, prev);
+    const spots = [
+      { id: 'gpu', label: 'Under the GPU, blowing up into it', snap: snapAt(Math.min(g.length, c.depth) * 0.55, g.sinkBottom + 40, null) },
+      { id: 'pcie', label: 'Rear PCIe slot area, below the GPU', snap: snapAt(8, g.sinkBottom + size / 2 + 6, current && current.spot === 'pcie' ? current : null) },
+    ];
+    const b = comps.cpuCooler.bounds;
+    if (b && comps.cpuCooler.type === 'tower') spots.push({ id: 'cooler', label: 'In front of the CPU cooler', snap: snapAt(b.x + b.w + 30, b.y + b.h / 2, null) });
+    const floor = comps.shroud ? comps.shroud.y : c.height;
+    spots.push({ id: 'floor', label: comps.shroud ? 'On the PSU shroud, blowing up' : 'Near the floor, blowing up', snap: snapAt(c.depth * 0.68, floor - 60, { mount: { type: 'internal' }, dir: 'up' }) });
+    spots.push({ id: 'center', label: 'Middle of the case, blowing to the rear', snap: snapAt(c.depth * 0.55, c.height * 0.42, { mount: { type: 'internal' }, dir: 'left' }) });
+    for (const s of spots) {
+      if (s.snap.kind === 'slot') s.snap.blocked = true;
+      if (s.snap.blocked) s.reason = s.snap.kind === 'slot' ? 'a fan slot is there' : `no room for ${size} mm`;
+    }
+    return spots;
+  }
+
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   }
@@ -442,7 +463,7 @@
     return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config), customFans: fans };
   }
 
-  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop, towerFans, snapCustomFan, customFanRect, INWARD, OPPOSITE };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop, towerFans, snapCustomFan, customFanSpots, customFanRect, INWARD, OPPOSITE };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);
