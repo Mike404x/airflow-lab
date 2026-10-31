@@ -70,7 +70,8 @@
     computeTransform(config) {
       const W = this.canvas.width / this.dpr;
       const H = this.canvas.height / this.dpr;
-      const m = { l: 92, r: 92, t: 112, b: 84 };
+      this.compact = W < 640;
+      const m = this.compact ? { l: 40, r: 40, t: 96, b: 72 } : { l: 92, r: 92, t: 112, b: 84 };
       const scale = Math.max(0.05, Math.min((W - m.l - m.r) / config.case.depth, (H - m.t - m.b) / config.case.height));
       const ox = m.l + ((W - m.l - m.r) - config.case.depth * scale) / 2;
       const oy = m.t + ((H - m.t - m.b) - config.case.height * scale) / 2;
@@ -175,8 +176,9 @@
       ctx.font = '600 11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
       ctx.fillStyle = COLORS.dim;
       ctx.textAlign = 'center';
-      ctx.fillText('REAR', this.X(0) - 52, this.Y(c.height) + 30);
-      ctx.fillText('FRONT', this.X(c.depth) + 52, this.Y(c.height) + 30);
+      const edge = this.compact ? 20 : 52;
+      ctx.fillText('REAR', this.X(0) - edge + (this.compact ? 14 : 0), this.Y(c.height) + (this.compact ? 22 : 30));
+      ctx.fillText('FRONT', this.X(c.depth) + edge - (this.compact ? 14 : 0), this.Y(c.height) + (this.compact ? 22 : 30));
     }
 
     panelStroke(type) {
@@ -512,18 +514,21 @@
         if (el && Math.abs(el.q) > 1e-5) {
           const inward = { front: [-1, 0], rear: [1, 0], top: [0, 1], bottom: [0, -1] }[s.panel];
           const sign = el.inflow > 0 ? 1 : -1;
-          const ox = this.X(s.cx) - inward[0] * 44;
-          const oy = this.Y(s.cy) - inward[1] * 44;
+          const reach = this.compact ? 26 : 44;
+          const ox = this.X(s.cx) - inward[0] * reach;
+          const oy = this.Y(s.cy) - inward[1] * reach;
           const ix = this.X(s.cx) + inward[0] * 18;
           const iy = this.Y(s.cy) + inward[1] * 18;
           const arrowColor = el.kind === 'vent' ? 'rgba(160,175,195,0.8)' : color;
           if (sign > 0) this.drawArrow(ox, oy, ix, iy, arrowColor, el.kind === 'vent' ? 1.5 : 3);
           else this.drawArrow(ix, iy, ox, oy, arrowColor, el.kind === 'vent' ? 1.5 : 3);
-          ctx.font = `${el.kind === 'vent' ? '' : '600 '}11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif`;
+          ctx.font = `${el.kind === 'vent' ? '' : '600 '}${this.compact ? 9 : 11}px Inter, Segoe UI Variable Text, Segoe UI, sans-serif`;
           ctx.fillStyle = el.kind === 'vent' ? COLORS.dim : COLORS.text;
           ctx.textAlign = s.panel === 'front' ? 'left' : s.panel === 'rear' ? 'right' : 'center';
-          const lx = this.X(s.cx) - inward[0] * 50;
-          const ly = this.Y(s.cy) - inward[1] * 50 + (s.axis === 'x' ? 16 : (s.panel === 'top' ? -4 : 12));
+          const lo = this.compact ? 4 : 50;
+          const lx = s.axis === 'x' && this.compact ? this.X(s.cx) - inward[0] * 4 : this.X(s.cx) - inward[0] * lo;
+          const ly = s.axis === 'x' && this.compact ? this.Y(s.cy) - s.size * this.t.scale / 2 - 6 : this.Y(s.cy) - inward[1] * (this.compact ? 32 : 50) + (s.axis === 'x' ? 16 : (s.panel === 'top' ? -4 : 12));
+          if (s.axis === 'x' && this.compact) ctx.textAlign = s.panel === 'front' ? 'right' : 'left';
           ctx.fillText(fmtFlow(Math.abs(el.q)), lx, ly);
         }
         this.hitAreas.push({ id: s.id, kind: 'rect', x: r.x - 12, y: r.y, w: r.w + 24, h: r.h, panelRect: true, s });

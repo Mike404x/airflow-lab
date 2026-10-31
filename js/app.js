@@ -154,6 +154,7 @@
       this.updatePlayButton();
       document.querySelectorAll('#rightTabs .tab').forEach((tab) => tab.addEventListener('click', () => this.showTab(tab.dataset.tab)));
       document.getElementById('btnAddFan').addEventListener('click', () => this.addCustomFan());
+      document.querySelectorAll('#mobileNav .mnav').forEach((b) => b.addEventListener('click', () => this.setMobileView(b.dataset.mview)));
       document.getElementById('btn2d').addEventListener('click', () => this.setMode3d(false));
       document.getElementById('btn3d').addEventListener('click', () => this.setMode3d(true));
       const layersBtn = document.getElementById('btnLayers');
@@ -249,6 +250,17 @@
       AF.ui.buildEditor(this.dom.editor, this);
       this.renderPanels();
       this.showTab('inspect');
+      if (this.isMobile()) this.setMobileView('details');
+    },
+
+    isMobile() {
+      return root.matchMedia('(max-width: 900px)').matches;
+    },
+
+    setMobileView(view) {
+      document.body.dataset.mview = view;
+      document.querySelectorAll('#mobileNav .mnav').forEach((b) => b.classList.toggle('active', b.dataset.mview === view));
+      this.dom.tooltip.style.display = 'none';
     },
 
     updatePlayButton() {
@@ -305,6 +317,9 @@
       AF.ui.renderKpis(this.dom.kpis, this);
       AF.ui.renderResults(this.dom.results, this);
       AF.ui.renderInsights(this.dom.insights, this.dom.insightsBadge, this);
+      const mobileBadge = document.getElementById('mobileBadge');
+      mobileBadge.textContent = this.dom.insightsBadge.textContent;
+      mobileBadge.className = this.dom.insightsBadge.className;
     },
 
     update(mutator, opts) {

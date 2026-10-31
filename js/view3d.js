@@ -288,6 +288,7 @@
       const dims = `${D}x${H}x${W}`;
       if (dims !== this.dims) {
         this.dims = dims;
+        this.resize();
         this.resetView();
       }
     }
@@ -532,7 +533,7 @@
     }
 
     resetView() {
-      const S = Math.max(this.D, this.H, this.W);
+      const S = Math.max(this.D, this.H, this.W) * Math.max(1, 1.15 / (this.camera.aspect || 1));
       this.camera.position.set(S * 0.7, S * 0.48, S * 2.25);
       this.controls.target.set(0, 0, 0);
       this.controls.update();

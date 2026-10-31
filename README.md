@@ -30,6 +30,15 @@ Every later `git push` redeploys automatically. A failing test blocks the deploy
 
 Builds are saved per visitor in their browser's local storage; nothing is sent to a server.
 
+## Mobile
+
+On screens narrower than 900 px the app switches to a phone layout with a bottom tab bar:
+- **Build:** part sections, with the section icons in a horizontal strip.
+- **Simulate:** stat cards you can swipe, plus the 2D/3D view.
+- **Details:** the Inspector, Results and Insights tabs.
+
+Tapping a fan, the CPU cooler or the GPU in the view opens its settings. The 3D view supports touch: drag to orbit, pinch to zoom, tap a part to make it transparent.
+
 ## 3D view
 
 The **2D / 3D** switch above the simulation turns the view into an interactive 3D model built from the same geometry. It shows the case panels, the glass side panel, the motherboard with RAM and slots, the CPU cooler (fin stacks, fans, AIO pump, tubes and radiators), the graphics card, the PSU shroud, and every case fan and extra fan with spinning blades and flow arrows. It also shows the live CFD heat map as a slice through the case and the airflow particles as streaks.

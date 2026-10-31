@@ -12,7 +12,7 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body data-mview="sim">
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -91,6 +91,12 @@
         <div class="tab-body" data-panel="insights"><div id="insights"></div></div>
       </aside>
     </main>
+
+    <nav class="mobile-nav" id="mobileNav">
+      <button class="mnav" data-mview="build"><span data-icon="sliders"></span>Build</button>
+      <button class="mnav active" data-mview="sim"><span data-icon="fan"></span>Simulate</button>
+      <button class="mnav" data-mview="details"><span data-icon="chart"></span>Details<span class="tab-badge" id="mobileBadge"></span></button>
+    </nav>
   </div>
   <script src="js/data.js"></script>
   <script src="js/catalog.js"></script>
