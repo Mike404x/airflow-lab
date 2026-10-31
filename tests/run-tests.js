@@ -342,7 +342,57 @@ function placementTests() {
   }
 }
 
+function customFanTests() {
+  const base = () => clone(AF.data.PRESETS[0].config);
+  const cfg = base();
+  const L = AF.geometry.layout(cfg);
+  const g = L.components.gpu;
+  const ft = AF.data.PHYSICS.fanThickness;
+  const under = AF.geometry.snapCustomFan(cfg, L, 150, g.sinkBottom + 40, 120, null);
+  check('snap under GPU blows up into it', under.mount.type === 'internal' && under.mount.anchor === 'gpu' && under.dir === 'up' && Math.abs(under.y - (g.sinkBottom + 8 + ft / 2)) < 1e-6);
+  const rear92 = AF.geometry.snapCustomFan(cfg, L, 10, g.sinkBottom + 45, 92, null);
+  check('92 mm snaps to the rear PCIe area below the GPU', rear92.mount.type === 'wall' && rear92.mount.panel === 'rear' && !rear92.blocked && rear92.y - 46 >= g.sinkBottom && /PCIe/.test(rear92.label));
+  const rear120 = AF.geometry.snapCustomFan(cfg, L, 10, g.sinkBottom + 45, 120, null);
+  check('120 mm below a 2.5-slot GPU is blocked (no room above the shroud)', rear120.blocked === true);
+  const slot = L.slots.find((s) => s.id === 'top-1');
+  const toSlot = AF.geometry.snapCustomFan(cfg, L, slot.cx, slot.cy + 10, slot.size, null);
+  check('dropping near an empty slot snaps into that slot', toSlot.kind === 'slot' && toSlot.slotId === 'top-1');
+  const free = AF.geometry.snapCustomFan(cfg, L, 333, 222, 120, null);
+  check('free placement snaps to the 5 mm grid', free.mount.type === 'internal' && free.x % 5 === 0 && free.y % 5 === 0);
+  const cooler = L.components.cpuCooler.bounds;
+  const assist = AF.geometry.snapCustomFan(cfg, L, cooler.x + cooler.w + 30, cooler.y + cooler.h / 2, 120, null);
+  check('snap in front of the CPU cooler blows into it', assist.mount.anchor === 'cooler' && assist.dir === 'left');
+
+  const withRear = base();
+  withRear.customFans = [{ id: 'cf-1', size: 92, fan: 'noctua-a9x14', speed: 1, x: rear92.x, y: rear92.y, dir: rear92.dir, mount: rear92.mount }];
+  const a0 = solve(base()).air;
+  const a1 = solve(withRear);
+  check('extra rear exhaust lowers case pressure', a1.air.pressure < a0.pressure);
+  check('custom wall fan closes the mass balance', Math.abs(a1.air.imbalance) / a1.air.throughFlow < 1e-6);
+  check('custom wall fan is an exhaust element', a1.air.elements.some((e) => e.id === 'cf-1' && e.dir === -1 && e.q > 0));
+  check('no placement issues for the PCIe fan', a1.layout.issues.length === 0, a1.layout.issues.map((i) => i.text).join('; '));
+
+  const withInternal = base();
+  withInternal.customFans = [
+    { id: 'cf-1', size: 120, fan: 'arctic-p12', speed: 0.8, x: under.x, y: under.y, dir: under.dir, mount: under.mount },
+    { id: 'cf-2', size: 120, fan: 'arctic-p12', speed: 0.8, x: assist.x, y: assist.y, dir: assist.dir, mount: assist.mount },
+  ];
+  const r = solve(withInternal);
+  check('internal fans move air', r.air.internal.length === 2 && r.air.internal.every((e) => e.q > 0));
+  check('internal fans do not change case pressure', Math.abs(r.air.pressure - a0.pressure) < 1e-9);
+  for (const [label, conf] of [['PCIe exhaust', withRear], ['internal fans', withInternal]]) {
+    const { layout, air, thermal } = solve(conf);
+    const sim = new AF.CaseSim(conf, layout, air, thermal, null);
+    sim.advance(Math.ceil(4 / sim.dt));
+    check(`CFD with ${label} stays finite`, sim.T.every(Number.isFinite) && sim.u.every(Number.isFinite));
+  }
+  const clash = base();
+  clash.customFans = [{ id: 'cf-1', size: 120, x: 150, y: g.pcbTop + 20, dir: 'up', mount: { type: 'internal' } }];
+  check('fan placed inside the GPU is flagged', AF.geometry.layout(clash).issues.some((i) => /overlaps the graphics card/.test(i.text)));
+}
+
 fanCurveTests();
+customFanTests();
 placementTests();
 catalogTests();
 motherboardTests();

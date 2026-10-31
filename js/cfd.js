@@ -200,10 +200,12 @@
         if (s.axis === 'z') this.sideSource(s, el); else this.wallFan(s, el);
       }
 
+      for (const el of air.elements) if (el.custom) this.wallFan(el.slot, el);
       if (cpuCooler.type === 'tower' && air.coolers.cpu) this.towerForcing(air.coolers.cpu.q);
       if (gpuCooler.type === 'open' && air.coolers.gpu) this.openGpuForcing(gpu, air.coolers.gpu.total);
       if (gpuCooler.type === 'blower') this.blowerForcing(gpu, air.blower ? Math.max(0, air.blower.q) : 0);
       if (comps.radiator) this.radiatorChannels();
+      for (const el of air.internal || []) this.internalFan(el.custom, el.q);
 
       this.collectReadingCells(layout, cpuCooler, gpuCooler);
       this.collectBoundary();
@@ -292,6 +294,30 @@
         if (this.region[this.id(i, j)] === REGION_CPU && this.region[this.id(i, j - 1)] === REGION_CPU) this.setFixed('v', this.vId(i, j), 0);
       }
       this.cpuFanRows = rows.map((j) => this.id(face, j));
+    }
+
+    internalFan(cf, q) {
+      const horizontal = cf.dir === 'left' || cf.dir === 'right';
+      const sign = cf.dir === 'right' || cf.dir === 'down' ? 1 : -1;
+      const faces = [];
+      if (horizontal) {
+        const i = Math.max(2, Math.min(this.nx - 2, 1 + Math.round(cf.x / this.dxMm)));
+        const [j0, j1] = this.spanY(cf.y - cf.size / 2, cf.y + cf.size / 2);
+        for (let j = j0; j <= j1; j++) {
+          const k = this.uId(i, j);
+          if (!this.uFix[k] && this.type[this.id(i - 1, j)] === FLUID && this.type[this.id(i, j)] === FLUID) faces.push(['u', k]);
+        }
+      } else {
+        const j = Math.max(2, Math.min(this.ny - 2, 1 + Math.round(cf.y / this.dxMm)));
+        const [i0, i1] = this.spanX(cf.x - cf.size / 2, cf.x + cf.size / 2);
+        for (let i = i0; i <= i1; i++) {
+          const k = this.vId(i, j);
+          if (!this.vFix[k] && this.type[this.id(i, j - 1)] === FLUID && this.type[this.id(i, j)] === FLUID) faces.push(['v', k]);
+        }
+      }
+      if (!faces.length) return;
+      const velocity = sign * q / (this.width * faces.length * this.dx);
+      for (const [axis, k] of faces) this.setFixed(axis, k, velocity);
     }
 
     openGpuForcing(gpu, q) {

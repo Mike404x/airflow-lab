@@ -271,16 +271,178 @@
     return { panel: 'top', from: c.depth * 0.12, to: c.depth * 0.72, areaMm2: g.areaMm2 };
   }
 
+  const INWARD = { rear: 'right', front: 'left', top: 'down', bottom: 'up' };
+  const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+  const WALL_SNAP_MM = 40;
+  const SLOT_SNAP_MM = 26;
+  const GRID_MM = 5;
+
+  function customFanRect(cf) {
+    const ft = AF.data.PHYSICS.fanThickness;
+    const horizontal = cf.dir === 'left' || cf.dir === 'right';
+    return horizontal
+      ? { x: cf.x - ft / 2, y: cf.y - cf.size / 2, w: ft, h: cf.size }
+      : { x: cf.x - cf.size / 2, y: cf.y - ft / 2, w: cf.size, h: ft };
+  }
+
+  function customFanMode(cf) {
+    if (!cf.mount || cf.mount.type !== 'wall') return 'internal';
+    return cf.dir === INWARD[cf.mount.panel] ? 'intake' : 'exhaust';
+  }
+
+  function wallPosition(config, panel, along, size) {
+    const ft = AF.data.PHYSICS.fanThickness;
+    const c = config.case;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    if (panel === 'rear') return { x: ft / 2, y: clamp(along, size / 2, Math.max(size / 2, shroudTop(config) - size / 2)) };
+    if (panel === 'front') return { x: c.depth - ft / 2, y: clamp(along, size / 2, c.height - size / 2) };
+    if (panel === 'top') return { x: clamp(along, size / 2, c.depth - size / 2), y: ft / 2 };
+    return { x: clamp(along, size / 2, c.depth - size / 2), y: c.height - ft / 2 };
+  }
+
+  function wallLabel(panel, along, comps) {
+    const names = { rear: 'Rear wall', front: 'Front wall', top: 'Roof', bottom: 'Floor' };
+    if (panel === 'rear' && along >= comps.pcie.top - 10 && along <= comps.pcie.bottom + 10) return 'Rear wall · PCIe slot area';
+    return names[panel];
+  }
+
+  function customFans(config, comps) {
+    const list = Array.isArray(config.customFans) ? config.customFans : [];
+    return list.map((raw, index) => {
+      const cf = Object.assign({ size: 120, fan: 'arctic-p12', speed: 0.7, filter: 'none', dir: 'up', mount: { type: 'internal' } }, raw);
+      if (cf.mount.type === 'wall') {
+        const along = cf.mount.panel === 'rear' || cf.mount.panel === 'front' ? cf.y : cf.x;
+        Object.assign(cf, wallPosition(config, cf.mount.panel, along, cf.size));
+        if (cf.dir !== INWARD[cf.mount.panel] && cf.dir !== OPPOSITE[INWARD[cf.mount.panel]]) cf.dir = OPPOSITE[INWARD[cf.mount.panel]];
+      }
+      cf.index = index;
+      cf.label = `Custom fan ${index + 1}`;
+      cf.rect = customFanRect(cf);
+      cf.mode = customFanMode(cf);
+      cf.where = cf.mount.type === 'wall' ? wallLabel(cf.mount.panel, cf.mount.panel === 'rear' || cf.mount.panel === 'front' ? cf.y : cf.x, comps)
+        : cf.mount.anchor === 'gpu' ? 'Under the GPU' : cf.mount.anchor === 'cooler' ? 'In front of the CPU cooler' : 'Inside the case';
+      return cf;
+    });
+  }
+
+  function snapCustomFan(config, layoutResult, x, y, size, current) {
+    const P = AF.data.PHYSICS;
+    const c = config.case;
+    const ft = P.fanThickness;
+    const comps = layoutResult.components;
+    const grid = (v) => Math.round(v / GRID_MM) * GRID_MM;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const prev = current || {};
+
+    for (const s of layoutResult.slots) {
+      if (!s.available || s.axis === 'z' || s.size !== size) continue;
+      const inward = { front: [-1, 0], rear: [1, 0], top: [0, 1], bottom: [0, -1] }[s.panel];
+      const cx = s.cx + inward[0] * ft / 2;
+      const cy = s.cy + inward[1] * ft / 2;
+      if (Math.hypot(x - cx, y - cy) < SLOT_SNAP_MM) {
+        return { kind: 'slot', slotId: s.id, x: cx, y: cy, dir: INWARD[s.panel], label: `${AF.data.PANELS[s.panel].name} slot ${s.index + 1}` };
+      }
+    }
+
+    const walls = [
+      { panel: 'rear', d: x, along: y },
+      { panel: 'front', d: c.depth - x, along: y },
+      { panel: 'top', d: y, along: x },
+    ];
+    if (!comps.shroud) walls.push({ panel: 'bottom', d: c.height - y, along: x });
+    const wall = walls.filter((w) => w.d < WALL_SNAP_MM).sort((a, b) => a.d - b.d)[0];
+    if (wall) {
+      const pos = wallPosition(config, wall.panel, grid(wall.along), size);
+      let fitNote = '';
+      if (wall.panel === 'rear') {
+        const g0 = comps.gpu;
+        const top = g0.pcbTop - 6;
+        const bottom = g0.sinkBottom + 4;
+        if (pos.y + size / 2 > top && pos.y - size / 2 < bottom) {
+          const below = bottom + size / 2;
+          const above = top - size / 2;
+          const belowFits = below + size / 2 <= shroudTop(config);
+          const aboveFits = above - size / 2 >= 0;
+          const preferBelow = Math.abs(pos.y - below) <= Math.abs(pos.y - above);
+          if (belowFits && (preferBelow || !aboveFits)) pos.y = below;
+          else if (aboveFits) pos.y = above;
+          else fitNote = ` · ${size} mm does not fit here, try a smaller fan`;
+          if (!belowFits && preferBelow && aboveFits) fitNote = ` · no room for ${size} mm below the GPU (${Math.round(shroudTop(config) - bottom)} mm free), try a smaller fan`;
+        }
+      }
+      const prevMode = prev.mount && prev.mount.type === 'wall' ? (prev.dir === INWARD[prev.mount.panel] ? 'intake' : 'exhaust') : null;
+      const mode = prevMode || (wall.panel === 'front' || wall.panel === 'bottom' ? 'intake' : 'exhaust');
+      const dir = mode === 'intake' ? INWARD[wall.panel] : OPPOSITE[INWARD[wall.panel]];
+      const along = wall.panel === 'rear' || wall.panel === 'front' ? pos.y : pos.x;
+      return { kind: 'custom', x: pos.x, y: pos.y, dir, mount: { type: 'wall', panel: wall.panel }, label: `${wallLabel(wall.panel, along, comps)} · ${mode}${fitNote}`, blocked: !!fitNote };
+    }
+
+    const g = comps.gpu;
+    if (x > 5 && x < g.length + 10 && y > g.sinkBottom - 15 && y < g.sinkBottom + 95) {
+      return {
+        kind: 'custom', x: clamp(grid(x), size / 2 + 5, Math.max(size / 2 + 5, g.length - size / 2)), y: g.sinkBottom + 8 + ft / 2,
+        dir: 'up', mount: { type: 'internal', anchor: 'gpu' }, label: 'Under the GPU · blowing up into it',
+      };
+    }
+
+    const b = comps.cpuCooler.bounds;
+    if (b && y > b.y && y < b.y + b.h && x > b.x + b.w - 5 && x < b.x + b.w + 80) {
+      return {
+        kind: 'custom', x: b.x + b.w + 6 + ft / 2, y: b.y + b.h / 2,
+        dir: 'left', mount: { type: 'internal', anchor: 'cooler' }, label: 'In front of the CPU cooler · blowing into it',
+      };
+    }
+
+    const half = size / 2;
+    const dir = prev.mount && prev.mount.type === 'internal' && prev.dir ? prev.dir : 'up';
+    return {
+      kind: 'custom', x: clamp(grid(x), half, c.depth - half), y: clamp(grid(y), half, c.height - half),
+      dir, mount: { type: 'internal' }, label: `Inside the case · blowing ${dir}`,
+    };
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+
+  function customFanIssues(config, slots, comps, fans) {
+    const issues = [];
+    const g = comps.gpu;
+    const gpuBox = { x: 0, y: g.pcbTop, w: g.length, h: g.sinkBottom - g.pcbTop };
+    for (const cf of fans) {
+      const r = cf.rect;
+      if (rectsOverlap(r, gpuBox)) issues.push({ level: 'error', text: `${cf.label} overlaps the graphics card.` });
+      if (comps.cpuCooler.bounds && rectsOverlap(r, comps.cpuCooler.bounds)) issues.push({ level: 'error', text: `${cf.label} overlaps the CPU cooler.` });
+      if (comps.shroud && rectsOverlap(r, { x: 0, y: comps.shroud.y, w: comps.shroud.x1, h: config.case.height - comps.shroud.y })) {
+        issues.push({ level: 'error', text: `${cf.label} sits inside the PSU shroud.` });
+      }
+      for (const other of fans) {
+        if (other.index > cf.index && rectsOverlap(r, other.rect)) issues.push({ level: 'error', text: `${cf.label} overlaps ${other.label}.` });
+      }
+      if (cf.mount.type === 'wall') {
+        for (const s of slots) {
+          if (s.panel !== cf.mount.panel || slotConfig(config, s.id).mode === 'empty') continue;
+          const along = s.panel === 'rear' || s.panel === 'front' ? [s.cy, cf.y] : [s.cx, cf.x];
+          if (Math.abs(along[0] - along[1]) < (s.size + cf.size) / 2) issues.push({ level: 'error', text: `${cf.label} overlaps the fan in ${AF.data.PANELS[s.panel].name.toLowerCase()} slot ${s.index + 1}.` });
+        }
+        const type = AF.data.PANEL_TYPES[config.case.panels[cf.mount.panel].type];
+        if (!type.allowsFans || type.zeta === 0) issues.push({ level: 'info', text: `${cf.label} is on a sealed ${cf.mount.panel} panel. It is modelled as a perforated cut-out or bracket.` });
+      }
+    }
+    return issues;
+  }
+
   function layout(config) {
     const slots = buildSlots(config);
     const components = buildComponents(config, slots);
-    const issues = clearanceIssues(config, slots, components);
+    const fans = customFans(config, components);
+    const issues = clearanceIssues(config, slots, components).concat(customFanIssues(config, slots, components, fans));
     const radIds = new Set(components.radiator ? components.radiator.slots.map((s) => s.id) : []);
     for (const s of slots) s.radiator = radIds.has(s.id);
-    return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config) };
+    return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config), customFans: fans };
   }
 
-  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop, towerFans };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop, towerFans, snapCustomFan, customFanRect, INWARD, OPPOSITE };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);

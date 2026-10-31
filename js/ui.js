@@ -107,6 +107,9 @@
     gauge: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 3.5-5.5"/>',
     left: '<path d="m15 6-6 6 6 6"/>',
     right: '<path d="m9 6 6 6-6 6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
     vent: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M7 8h10M7 12h10M7 16h10"/>',
   };
 
@@ -454,6 +457,7 @@
     const st = app.state;
     const id = st.selection;
     if (id === 'cpu-cooler') return st.air.coolers.cpu || null;
+    if (id && id.startsWith('cf-')) return st.air.elements.find((e) => e.id === id) || (st.air.internal || []).find((e) => e.id === id) || null;
     if (id === 'gpu-cooler') return st.air.coolers.gpu || st.air.blower || null;
     return st.air.elements.find((e) => e.id === id) || null;
   }
@@ -486,6 +490,41 @@
         }
         body.append(field('Fan speed', slider(config.cpu.coolerFanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.cpu.coolerFanSpeed = v; }))));
       }
+    } else if (id && id.startsWith('cf-')) {
+      const cf = st.layout.customFans.find((f) => f.id === id);
+      if (!cf) {
+        rootEl.append(h('div', { class: 'editor-empty' }, h('div', { class: 'editor-icon' }, icon('target')), 'Click a fan slot, the CPU cooler or the GPU in the view to configure it.'));
+        return;
+      }
+      const setCf = (patch, isLive) => (isLive ? live : update)((cfg) => {
+        Object.assign(cfg.customFans.find((f) => f.id === id), patch);
+      });
+      const G = AF.geometry;
+      body.append(editorHead('fan', cf.mode === 'internal' ? '' : cf.mode, cf.label, `${cf.where} · ${cf.size} mm`));
+      if (cf.mount.type === 'wall') {
+        const inward = G.INWARD[cf.mount.panel];
+        body.append(h('div', { class: 'segmented' }, ...['intake', 'exhaust'].map((m) => h('button', {
+          class: `seg ${cf.mode === m ? 'active' : ''} ${m}`,
+          onclick: () => setCf({ dir: m === 'intake' ? inward : G.OPPOSITE[inward] }),
+        }, m[0].toUpperCase() + m.slice(1)))));
+      } else {
+        const dirs = [['up', 'Up'], ['down', 'Down'], ['left', 'To rear'], ['right', 'To front']];
+        body.append(field('Blowing direction', h('div', { class: 'segmented' }, ...dirs.map(([d, label]) => h('button', {
+          class: `seg ${cf.dir === d ? 'active' : ''}`,
+          onclick: () => setCf({ dir: d, mount: Object.assign({}, cf.mount, { anchor: d === cf.dir ? cf.mount.anchor : null }) }),
+        }, label)))));
+      }
+      const sizes = Array.from(new Set(D.FANS.map((f) => f.size))).sort((a, b) => a - b);
+      body.append(h('div', { class: 'grid2' },
+        field('Size', select(sizes.map((v) => ({ value: v, label: `${v} mm` })), cf.size, (v) => setCf({ size: +v, fan: (D.FANS.find((f) => f.size === +v) || D.FANS[0]).id }))),
+        field('Speed', slider(cf.speed, 0, 1, 0.01, pct, (v) => setCf({ speed: v }, true)))));
+      body.append(field('Fan model', groupedSelect(fanOptions(cf.size), cf.fan, (v) => setCf({ fan: v }))));
+      if (cf.fan === 'custom') body.append(customFanFields(cf.custom, (v) => setCf({ custom: v })));
+      if (cf.mode === 'intake') body.append(field('Dust filter', select(Object.entries(D.FILTERS).map(([v, f]) => ({ value: v, label: f.name })), cf.filter, (v) => setCf({ filter: v }))));
+      body.append(h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: () => app.rotateCustomFan(id) }, icon('rotate'), cf.mount.type === 'wall' ? 'Flip' : 'Rotate'),
+        h('button', { class: 'btn danger', onclick: () => app.removeCustomFan(id) }, icon('trash'), 'Remove')));
+      body.append(h('div', { class: 'hint' }, 'Drag the fan in the view. It snaps to the case walls (including the PCIe slot area), under the GPU, in front of the CPU cooler and onto empty fan slots. Shortcuts: R rotates or flips, Delete removes.'));
     } else if (id === 'gpu-cooler') {
       const cooler = AF.catalog.gpuCooler(config);
       const gpuEntry = AF.catalog.byId(AF.catalog.GPUS, config.gpu.model);
@@ -524,6 +563,7 @@
       }
       body.append(h('div', { class: 'row' },
         h('button', { class: 'btn small', onclick: () => app.applyToPanel(id) }, `Copy to all ${panelName.toLowerCase()} slots`)));
+      if (sc.mode !== 'empty') body.append(h('div', { class: 'hint' }, 'Tip: drag this fan in the view to move it to another slot or to a custom spot.'));
     }
     rootEl.append(body, dynamic);
     updateEditorDynamic(app);
@@ -730,6 +770,7 @@
     });
     const coolerRows = [];
     if (air.coolers.cpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('cpu-cooler') }, h('td', {}, 'CPU cooler'), h('td', {}, modePill('internal')), h('td', {}, fmt.flow(air.coolers.cpu.q)), h('td', {}, `${Math.round(air.coolers.cpu.q / air.coolers.cpu.free * 100)}%`)));
+    for (const el of air.internal || []) coolerRows.push(h('tr', { class: `clickable ${st.selection === el.id ? 'sel' : ''}`, onclick: () => app.select(el.id) }, h('td', {}, el.label), h('td', {}, modePill('internal')), h('td', {}, fmt.flow(el.q)), h('td', {}, `${Math.round(el.q / Math.max(el.free, 1e-9) * 100)}%`)));
     if (air.coolers.gpu) coolerRows.push(h('tr', { class: 'clickable', onclick: () => app.select('gpu-cooler') }, h('td', {}, 'GPU fans'), h('td', {}, modePill('internal')), h('td', {}, fmt.flow(air.coolers.gpu.total)), h('td', {}, `${Math.round(air.coolers.gpu.q / air.coolers.gpu.free * 100)}%`)));
     rootEl.append(h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'Fans & openings', h('span', { class: 'muted' }, 'click a row to edit')),
       h('table', { class: 'fans' }, h('thead', {}, h('tr', {}, h('th', {}, 'Where'), h('th', {}, 'Mode'), h('th', {}, 'Flow'), h('th', { title: 'Percentage of free-air flow' }, 'Eff.'))),

@@ -82,6 +82,7 @@
         kpis: document.getElementById('kpis'),
         insights: document.getElementById('insights'),
         insightsBadge: document.getElementById('insightsBadge'),
+        toast: document.getElementById('toast'),
       };
       AF.ui.hydrateIcons(document);
       this.renderer = new AF.render.CaseRenderer(this.dom.canvas);
@@ -154,6 +155,7 @@
         AF.ui.hydrateIcons(playBtn.parentElement);
       });
       document.querySelectorAll('#rightTabs .tab').forEach((tab) => tab.addEventListener('click', () => this.showTab(tab.dataset.tab)));
+      document.getElementById('btnAddFan').addEventListener('click', () => this.addCustomFan());
       document.getElementById('btnRestart').addEventListener('click', () => {
         this.state.sim = null;
         this.recompute(false);
@@ -164,15 +166,50 @@
 
     bindCanvas() {
       const canvas = this.dom.canvas;
-      canvas.addEventListener('click', (e) => {
+      const local = (e) => {
         const r = canvas.getBoundingClientRect();
-        const id = this.renderer.hitTest(e.clientX - r.left, e.clientY - r.top);
-        if (id) this.select(id);
+        return { px: e.clientX - r.left, py: e.clientY - r.top };
+      };
+      canvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        const { px, py } = local(e);
+        const id = this.renderer.hitTest(px, py);
+        this.pointer = { id, px, py, source: this.dragSourceFor(id) };
+      });
+      window.addEventListener('mousemove', (e) => {
+        const ptr = this.pointer;
+        if (!ptr || !ptr.source) return;
+        const { px, py } = local(e);
+        if (!this.state.drag && Math.hypot(px - ptr.px, py - ptr.py) < 5) return;
+        const p = this.renderer.toMm(px, py);
+        const snap = AF.geometry.snapCustomFan(this.state.config, this.state.layout, p.x, p.y, ptr.source.size, ptr.source.cf);
+        this.state.drag = { sourceId: ptr.source.id, moved: true, snap, size: ptr.source.size };
+        this.dom.tooltip.style.display = 'none';
+        canvas.style.cursor = 'grabbing';
+      });
+      window.addEventListener('mouseup', () => {
+        const ptr = this.pointer;
+        this.pointer = null;
+        if (!ptr) return;
+        const drag = this.state.drag;
+        this.state.drag = null;
+        if (drag && drag.moved) {
+          this.dropFan(ptr.source, drag.snap);
+          return;
+        }
+        if (ptr.id) this.select(ptr.id);
+      });
+      window.addEventListener('keydown', (e) => {
+        if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) return;
+        const id = this.state.selection;
+        if (!id || !id.startsWith('cf-')) return;
+        if (e.key === 'r' || e.key === 'R') { this.rotateCustomFan(id); e.preventDefault(); }
+        if (e.key === 'Delete' || e.key === 'Backspace') { this.removeCustomFan(id); e.preventDefault(); }
       });
       canvas.addEventListener('mousemove', (e) => {
+        if (this.state.drag) return;
+        const { px, py } = local(e);
         const r = canvas.getBoundingClientRect();
-        const px = e.clientX - r.left;
-        const py = e.clientY - r.top;
         const html = this.tooltipFor(px, py);
         const tip = this.dom.tooltip;
         if (!html) { tip.style.display = 'none'; canvas.style.cursor = 'default'; return; }
@@ -180,7 +217,8 @@
         tip.style.display = 'block';
         tip.style.left = `${Math.min(px + 14, r.width - tip.offsetWidth - 4)}px`;
         tip.style.top = `${Math.min(py + 14, r.height - tip.offsetHeight - 4)}px`;
-        canvas.style.cursor = this.renderer.hitTest(px, py) ? 'pointer' : 'crosshair';
+        const hoverId = this.renderer.hitTest(px, py);
+        canvas.style.cursor = this.dragSourceFor(hoverId) ? 'grab' : hoverId ? 'pointer' : 'crosshair';
       });
       canvas.addEventListener('mouseleave', () => { this.dom.tooltip.style.display = 'none'; });
     },
@@ -195,6 +233,12 @@
           const g = AF.catalog.byId(AF.catalog.GPUS, st.config.gpu.model);
           return `<b>${g ? g.name : 'GPU'}</b><br>${AF.catalog.gpuCooler(st.config).name}<br>Click to edit`;
         }
+        if (id.startsWith('cf-')) {
+          const cf = st.layout.customFans.find((f) => f.id === id);
+          const el = st.air.elements.find((e) => e.id === id) || (st.air.internal || []).find((e) => e.id === id);
+          if (!cf) return null;
+          return `<b>${cf.label}</b> · ${cf.size} mm<br>${cf.where} · ${cf.mode}${el ? `: ${fmt.flow(Math.abs(el.q))}` : ''}<br>Drag to move · R rotate · Del remove`;
+        }
         const el = st.air.elements.find((e) => e.id === id);
         const slot = st.layout.slots.find((s) => s.id === id);
         if (!slot) return null;
@@ -202,7 +246,7 @@
         const head = `<b>${AF.data.PANELS[slot.panel].name} ${slot.index + 1}</b> · ${slot.size} mm`;
         if (!el) return `${head}<br>${slot.available ? 'Sealed slot' : 'Panel is sealed'}<br>Click to edit`;
         if (el.kind === 'vent') return `${head}<br>Open vent: ${fmt.flow(Math.abs(el.q))} ${el.inflow > 0 ? 'in' : 'out'}<br>Click to add a fan`;
-        return `${head}<br>${sc.mode}: ${fmt.flow(Math.abs(el.q))} (${Math.round(el.q / el.free * 100)}% of free air)<br>Click to edit`;
+        return `${head}<br>${sc.mode}: ${fmt.flow(Math.abs(el.q))} (${Math.round(el.q / el.free * 100)}% of free air)<br>Click to edit · drag to move`;
       }
       const sim = st.sim;
       if (!sim) return null;
@@ -238,6 +282,109 @@
     update(mutator, opts) {
       mutator(this.state.config);
       this.recompute(!(opts && opts.live));
+    },
+
+    dragSourceFor(id) {
+      if (!id) return null;
+      const cfg = this.state.config;
+      if (id.startsWith('cf-')) {
+        const cf = (cfg.customFans || []).find((f) => f.id === id);
+        return cf ? { kind: 'custom', id, size: cf.size, cf } : null;
+      }
+      const slot = this.state.layout.slots.find((s) => s.id === id);
+      if (!slot || slot.axis === 'z' || !slot.available) return null;
+      const sc = AF.geometry.slotConfig(cfg, id);
+      return sc.mode === 'empty' ? null : { kind: 'slot', id, size: slot.size, slotCfg: sc };
+    },
+
+    nextCustomFanId() {
+      const ids = (this.state.config.customFans || []).map((f) => +String(f.id).slice(3) || 0);
+      return `cf-${Math.max(0, ...ids) + 1}`;
+    },
+
+    toast(text, tone) {
+      const el = this.dom.toast;
+      el.textContent = text;
+      el.className = `toast glass show ${tone || ''}`;
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => { el.className = 'toast glass'; }, 3200);
+    },
+
+    dropFan(source, snap) {
+      if (snap.blocked) {
+        this.toast(snap.label.split(' · ').slice(-1)[0].replace(/^./, (c) => c.toUpperCase()), 'bad');
+        return;
+      }
+      const cfg = this.state.config;
+      cfg.customFans = cfg.customFans || [];
+      const G = AF.geometry;
+      const fanOf = (src) => (src.kind === 'slot'
+        ? { fan: src.slotCfg.fan, speed: src.slotCfg.speed, filter: src.slotCfg.filter, custom: src.slotCfg.custom, mode: src.slotCfg.mode }
+        : { fan: src.cf.fan, speed: src.cf.speed, filter: src.cf.filter, custom: src.cf.custom, mode: null });
+      const moving = fanOf(source);
+      if (snap.kind === 'slot') {
+        if (source.kind === 'slot' && source.id === snap.slotId) return;
+        const slot = this.state.layout.slots.find((s) => s.id === snap.slotId);
+        const target = G.slotConfig(cfg, snap.slotId);
+        const defaultMode = slot.panel === 'front' || slot.panel === 'bottom' ? 'intake' : 'exhaust';
+        const samePanel = source.kind === 'slot' && source.id.split('-')[0] === slot.panel;
+        cfg.slots[snap.slotId] = { mode: samePanel ? moving.mode : defaultMode, fan: moving.fan, speed: moving.speed, filter: moving.filter || 'none', custom: moving.custom };
+        if (source.kind === 'slot') {
+          cfg.slots[source.id] = target.mode !== 'empty' ? target : { mode: 'empty' };
+        } else {
+          const idx = cfg.customFans.findIndex((f) => f.id === source.id);
+          if (target.mode !== 'empty') Object.assign(cfg.customFans[idx], { fan: target.fan, speed: target.speed, filter: target.filter, custom: target.custom });
+          else cfg.customFans.splice(idx, 1);
+        }
+        this.state.selection = snap.slotId;
+      } else {
+        let dir = snap.dir;
+        const sourcePanel = source.kind === 'slot' ? source.id.split('-')[0] : null;
+        if (snap.mount.type === 'wall' && moving.mode && sourcePanel === snap.mount.panel) dir = moving.mode === 'intake' ? G.INWARD[snap.mount.panel] : G.OPPOSITE[G.INWARD[snap.mount.panel]];
+        const placed = { x: snap.x, y: snap.y, dir, mount: snap.mount };
+        if (source.kind === 'custom') {
+          Object.assign(cfg.customFans.find((f) => f.id === source.id), placed);
+          this.state.selection = source.id;
+        } else {
+          const id = this.nextCustomFanId();
+          cfg.customFans.push(Object.assign({ id, size: source.size, fan: moving.fan, speed: moving.speed, filter: moving.filter || 'none', custom: moving.custom }, placed));
+          cfg.slots[source.id] = { mode: 'empty' };
+          this.state.selection = id;
+        }
+      }
+      this.recompute(true);
+      this.showTab('inspect');
+    },
+
+    addCustomFan() {
+      const cfg = this.state.config;
+      cfg.customFans = cfg.customFans || [];
+      const g = this.state.layout.components.gpu;
+      const snap = AF.geometry.snapCustomFan(cfg, this.state.layout, Math.min(g.length, cfg.case.depth) * 0.6, g.sinkBottom + 50, 120, null);
+      const id = this.nextCustomFanId();
+      cfg.customFans.push({ id, size: 120, fan: 'arctic-p12', speed: 0.7, filter: 'none', x: snap.x, y: snap.y, dir: snap.dir, mount: snap.mount });
+      this.state.selection = id;
+      this.recompute(true);
+      this.showTab('inspect');
+    },
+
+    rotateCustomFan(id) {
+      const cf = (this.state.config.customFans || []).find((f) => f.id === id);
+      if (!cf) return;
+      if (cf.mount && cf.mount.type === 'wall') cf.dir = AF.geometry.OPPOSITE[cf.dir];
+      else {
+        const order = ['up', 'right', 'down', 'left'];
+        cf.dir = order[(order.indexOf(cf.dir) + 1) % 4];
+        cf.mount = { type: 'internal' };
+      }
+      this.recompute(true);
+    },
+
+    removeCustomFan(id) {
+      const cfg = this.state.config;
+      cfg.customFans = (cfg.customFans || []).filter((f) => f.id !== id);
+      this.state.selection = null;
+      this.recompute(true);
     },
 
     applyToPanel(id) {
@@ -290,7 +437,8 @@
       st.simStats = st.sim.stats();
       this.fmt = AF.ui.createFormatter(st.config);
       this.refreshThermal();
-      if (!st.layout.slots.some((s) => s.id === st.selection) && st.selection !== 'cpu-cooler' && st.selection !== 'gpu-cooler') {
+      const customSelected = st.selection && st.selection.startsWith('cf-') && st.layout.customFans.some((f) => f.id === st.selection);
+      if (!customSelected && !st.layout.slots.some((s) => s.id === st.selection) && st.selection !== 'cpu-cooler' && st.selection !== 'gpu-cooler') {
         st.selection = st.layout.slots.length ? st.layout.slots[0].id : null;
       }
       if (rebuildPanels) {

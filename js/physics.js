@@ -135,6 +135,29 @@
       }
     }
 
+    for (const cf of layout.customFans || []) {
+      if (cf.mount.type !== 'wall') continue;
+      const area = circleArea(cf.size);
+      const panelType = data().PANEL_TYPES[config.case.panels[cf.mount.panel].type];
+      const zeta = panelType.allowsFans && panelType.zeta > 0 ? panelType.zeta : data().PANEL_TYPES.perforated.zeta;
+      const losses = [quadratic('Grill / bracket', zeta, area, rho)];
+      const filter = data().FILTERS[cf.filter] || data().FILTERS.none;
+      if (filter.zeta > 0) losses.push(quadratic(filter.name, filter.zeta, area, rho));
+      const spec = fanSpecForSlot(cf, cf.size);
+      const panel = cf.mount.panel;
+      const slot = {
+        id: cf.id, panel, index: cf.index, size: cf.size, custom: true,
+        cx: panel === 'rear' ? 0 : panel === 'front' ? config.case.depth : cf.x,
+        cy: panel === 'top' ? 0 : panel === 'bottom' ? config.case.height : cf.y,
+        axis: panel === 'rear' || panel === 'front' ? 'x' : 'y',
+      };
+      elements.push({
+        id: cf.id, label: cf.label, kind: 'fan', dir: cf.mode === 'intake' ? 1 : -1,
+        fans: [{ fan: makeFan(spec, rho), speed: cf.speed }], losses, slot, custom: cf,
+        filtered: filter.zeta > 0, spec,
+      });
+    }
+
     const gpuSlots = Math.ceil(config.gpu.slots);
     const gpuCooler = AF.catalog.gpuCooler(config);
     let pcieArea = 0;
@@ -272,13 +295,26 @@
       coolers.gpu = gpuAsm;
     }
     const blower = elements.find((e) => e.kind === 'blower') || null;
+    const internal = (layout.customFans || []).filter((cf) => cf.mount.type !== 'wall').map((cf) => {
+      const spec = fanSpecForSlot(cf, cf.size);
+      const el = {
+        id: cf.id, label: cf.label, kind: 'internal', dir: 0, required: 0, custom: cf, spec,
+        fans: [{ fan: makeFan(spec, rho), speed: cf.speed }],
+        losses: [quadratic(cf.mount.anchor ? 'Component in front of the fan' : 'Surroundings', cf.mount.anchor ? 1.6 : 0.6, circleArea(cf.size), rho)],
+      };
+      el.q = solveFlow(el, 0);
+      el.developed = developed(el, el.q);
+      el.loss = totalLoss(el, el.q);
+      el.free = freeFlow(el);
+      return el;
+    });
 
     const c = config.case;
     const volume = (c.height * c.depth * c.width) * 1e-9;
     const throughFlow = fanIn + passiveIn;
     return {
       rho, pressure, elements, coolers, blower,
-      fanIn, fanOut, passiveIn, passiveOut, throughFlow,
+      fanIn, fanOut, passiveIn, passiveOut, throughFlow, internal,
       volume, airChangesPerMinute: throughFlow / volume * 60,
       imbalance: netInflow(elements, pressure),
     };
@@ -442,6 +478,12 @@
     if (thermal.cpu.throttled) add('error', `CPU reaches Tjmax (${config.cpu.tjmax} °C) and throttles from ${config.cpu.power} W to ${thermal.cpu.power.toFixed(0)} W.`);
     if (thermal.gpu.throttled) add('error', `GPU reaches its ${config.gpu.tmax} °C limit and throttles from ${config.gpu.power} W to ${thermal.gpu.power.toFixed(0)} W.`);
     if (air.coolers.gpu && air.coolers.gpu.q < 0.25 * air.coolers.gpu.free) add('warn', 'GPU fans are heavily restricted.');
+
+    for (const el of air.internal || []) {
+      const cf = el.custom;
+      if (cf.mount.anchor === 'gpu' && cf.dir === 'up') add('info', `${el.label} pushes ${cfm(el.q)} CFM of case air straight into the GPU fans.`);
+      if (cf.mount.anchor === 'cooler') add('info', `${el.label} pushes ${cfm(el.q)} CFM into the CPU cooler intake.`);
+    }
 
     if (simStats && simStats.ready) {
       if (simStats.stagnant > 0.35) add('warn', `CFD: ${Math.round(simStats.stagnant * 100)}% of the case cross-section has almost no air movement (dead zones).`);

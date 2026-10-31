@@ -530,6 +530,107 @@
       }
     }
 
+    customFanColors(mode) {
+      if (mode === 'intake') return { fill: 'rgba(56,189,248,0.32)', stroke: COLORS.intake };
+      if (mode === 'exhaust') return { fill: 'rgba(251,113,133,0.32)', stroke: COLORS.exhaust };
+      return { fill: 'rgba(167,139,250,0.3)', stroke: '#a78bfa' };
+    }
+
+    drawFanBody(r, dir, colors, selected, dashed) {
+      const ctx = this.ctx;
+      ctx.fillStyle = colors.fill;
+      ctx.fillRect(this.X(r.x), this.Y(r.y), this.S(r.w), this.S(r.h));
+      ctx.setLineDash(dashed ? [5, 4] : []);
+      ctx.strokeStyle = selected ? COLORS.selected : colors.stroke;
+      ctx.lineWidth = selected ? 2.5 : 1.5;
+      ctx.strokeRect(this.X(r.x), this.Y(r.y), this.S(r.w), this.S(r.h));
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const vertical = dir === 'left' || dir === 'right';
+      for (let k = 1; k < 6; k++) {
+        if (vertical) {
+          const y = r.y + r.h * k / 6;
+          ctx.moveTo(this.X(r.x + 3), this.Y(y - 6));
+          ctx.lineTo(this.X(r.x + r.w - 3), this.Y(y + 6));
+        } else {
+          const x = r.x + r.w * k / 6;
+          ctx.moveTo(this.X(x - 6), this.Y(r.y + 3));
+          ctx.lineTo(this.X(x + 6), this.Y(r.y + r.h - 3));
+        }
+      }
+      ctx.stroke();
+    }
+
+    flowVector(dir) {
+      return { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
+    }
+
+    drawCustomFans(state, fmtFlow) {
+      const ctx = this.ctx;
+      const fans = state.layout.customFans || [];
+      const flows = new Map();
+      for (const el of state.air.elements) if (el.custom) flows.set(el.id, el.q);
+      for (const el of state.air.internal || []) flows.set(el.id, el.q);
+      const dragging = state.drag && state.drag.moved ? state.drag.sourceId : null;
+      for (const cf of fans) {
+        const colors = this.customFanColors(cf.mode);
+        const ghosted = dragging === cf.id;
+        ctx.globalAlpha = ghosted ? 0.35 : 1;
+        this.drawFanBody(cf.rect, cf.dir, colors, state.selection === cf.id, false);
+        const q = flows.get(cf.id);
+        const [vx, vy] = this.flowVector(cf.dir);
+        const cx = this.X(cf.x);
+        const cy = this.Y(cf.y);
+        if (q != null && Math.abs(q) > 1e-5) {
+          this.drawArrow(cx - vx * 24, cy - vy * 24, cx + vx * 30, cy + vy * 30, colors.stroke, 3);
+          ctx.font = '600 11px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
+          ctx.fillStyle = '#e7ecf3';
+          ctx.textAlign = 'center';
+          const lx = cx + (vy !== 0 ? this.S(cf.size / 2) + 26 : vx * 52);
+          const ly = cy + (vx !== 0 ? -this.S(cf.size / 2) - 8 : vy * 46 + 4);
+          ctx.fillText(fmtFlow(Math.abs(q)), lx, ly);
+        }
+        ctx.globalAlpha = 1;
+        this.hitAreas.push({ id: cf.id, kind: 'rect', x: cf.rect.x - 6, y: cf.rect.y - 6, w: cf.rect.w + 12, h: cf.rect.h + 12, custom: true });
+      }
+    }
+
+    drawDragGhost(state) {
+      const drag = state.drag;
+      if (!drag || !drag.moved || !drag.snap) return;
+      const ctx = this.ctx;
+      const snap = drag.snap;
+      const size = drag.size;
+      const r = AF.geometry.customFanRect({ x: snap.x, y: snap.y, size, dir: snap.dir });
+      const mode = snap.kind === 'slot' ? 'intake' : snap.mount.type === 'wall'
+        ? (snap.dir === AF.geometry.INWARD[snap.mount.panel] ? 'intake' : 'exhaust') : 'internal';
+      const colors = snap.blocked ? { fill: 'rgba(248,113,113,0.25)', stroke: '#f87171' } : this.customFanColors(mode);
+      ctx.save();
+      ctx.shadowColor = colors.stroke;
+      ctx.shadowBlur = 14;
+      this.drawFanBody(r, snap.dir, colors, false, true);
+      ctx.restore();
+      const [vx, vy] = this.flowVector(snap.dir);
+      this.drawArrow(this.X(snap.x) - vx * 20, this.Y(snap.y) - vy * 20, this.X(snap.x) + vx * 26, this.Y(snap.y) + vy * 26, colors.stroke, 2.5);
+      ctx.font = '600 12px Inter, Segoe UI Variable Text, Segoe UI, sans-serif';
+      const text = snap.label;
+      const w = ctx.measureText(text).width + 18;
+      const px = Math.min(Math.max(this.X(snap.x) - w / 2, 8), this.t.W - w - 8);
+      const py = Math.max(this.Y(r.y) - 34, 8);
+      ctx.fillStyle = 'rgba(10,13,19,0.92)';
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(px, py, w, 24, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e7ecf3';
+      ctx.textAlign = 'left';
+      ctx.fillText(text, px + 9, py + 16);
+    }
+
     drawTags(state) {
       const ctx = this.ctx;
       const th = state.displayThermal;
@@ -568,7 +669,20 @@
       this.drawParticles(state);
       this.drawWalls(state, fmtFlow);
       this.drawSlots(state, fmtFlow);
+      this.drawCustomFans(state, fmtFlow);
+      this.drawDragGhost(state);
       this.drawTags(state);
+    }
+
+    hitTestAll(px, py) {
+      const p = this.toMm(px, py);
+      const out = [];
+      for (let k = this.hitAreas.length - 1; k >= 0; k--) {
+        const h = this.hitAreas[k];
+        if (h.kind === 'circle' && (p.x - h.x) ** 2 + (p.y - h.y) ** 2 <= h.r * h.r) out.push(h.id);
+        if (h.kind === 'rect' && p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) out.push(h.id);
+      }
+      return out;
     }
 
     hitTest(px, py) {

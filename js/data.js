@@ -169,6 +169,7 @@
           side: { type: 'solid', fanSize: 120 },
         },
       },
+      customFans: [],
       slots: {
         'front-0': slot('intake', 'arctic-p14', 0.7, 'nylon'),
         'front-1': slot('intake', 'arctic-p14', 0.7, 'nylon'),
