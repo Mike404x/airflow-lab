@@ -10,7 +10,8 @@ Tests: `node tests/run-tests.js`
 
 ## What you can configure
 
-- **Case**: height/depth/width, motherboard form factor, PSU shroud, vented PCIe covers, number of front fan mounts (1–3, limited by case height). The shroud stops short of the front fans, so a bottom front fan feeds the main chamber. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.
+- **Case**: height/depth/width, PSU shroud, vented PCIe covers, number of front fan mounts (1–3, limited by case height). The shroud stops short of the front fans, so a bottom front fan feeds the main chamber. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.
+- **Motherboard**: layout presets (ATX with the GPU in slot 1/2/3, ATX with a low socket, E-ATX, Micro-ATX, Mini-ITX), plus editable board size, CPU socket position, slot-1 position and which PCIe slot holds the GPU. This moves the CPU cooler and GPU in both the flow and thermal models. There are checks for board fit, the cooler overhanging the GPU slot, and the cooler hitting the top fans.
 - **Fan slots**: click any slot in the view. Set it to intake, exhaust or open vent, and choose the fan model (spec-sheet presets or a custom CFM / mmH₂O / RPM), the speed and the dust filter. Use "Copy to all slots" to fill a whole panel.
 - **CPU**: processor presets (power, die resistance, Tjmax), stock, low-profile, single-tower, dual-tower or AIO cooler. For tower coolers you can set the fan model, the fan count (push-pull) and the speed. For AIOs you can set the radiator location, size, thickness and push-pull.
 - **GPU**: presets, board power, length, slot thickness, and the cooler type (open-air dual/triple flow-through, or blower), with fan count and speed.

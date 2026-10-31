@@ -105,12 +105,22 @@
     return slots.filter((s) => s.panel === aio.panel && s.index < aio.fans);
   }
 
+  function motherboardOf(config) {
+    const c = config.case;
+    if (c.motherboard && c.motherboard.width) return c.motherboard;
+    return AF.data.motherboardConfig(AF.data.LEGACY_FORM_FACTORS[c.formFactor] || 'atx-slot2');
+  }
+
   function buildComponents(config, slots) {
     const P = AF.data.PHYSICS;
     const c = config.case;
-    const form = AF.data.FORM_FACTORS[c.formFactor] || AF.data.FORM_FACTORS.atx;
-    const mobo = { x: P.motherboardRearOffset, y: P.motherboardTopOffset, w: form.width, h: form.height };
-    const socket = { x: mobo.x + form.width * form.socketX, y: mobo.y + form.socketY };
+    const board = motherboardOf(config);
+    const mobo = { x: P.motherboardRearOffset, y: P.motherboardTopOffset, w: board.width, h: board.height };
+    const socket = { x: mobo.x + board.socketX, y: mobo.y + board.socketY };
+    const x16 = Math.max(1, Math.min(board.slotCount, board.x16Slot));
+    const pcieSlots = Array.from({ length: board.slotCount }, (_, k) => ({
+      index: k + 1, y: mobo.y + board.slot1Y + k * P.pcieSlotPitchMm, primary: k + 1 === x16,
+    }));
     const cooler = AF.data.CPU_COOLERS[config.cpu.cooler];
 
     let cpuCooler;
@@ -123,7 +133,7 @@
 
     const g = config.gpu;
     const slotsThickness = g.slots * P.pcieSlotPitchMm;
-    const pcbTop = mobo.y + P.gpuSlotTopOffset - (c.formFactor === 'itx' ? 20 : 0);
+    const pcbTop = mobo.y + board.slot1Y + (x16 - 1) * P.pcieSlotPitchMm;
     const gpuCooler = AF.data.GPU_COOLERS[g.cooler];
     const gpu = {
       x: 0, length: g.length, pcbTop,
@@ -144,7 +154,7 @@
     const radSlots = radiatorSlots(config, slots);
     const radiator = radSlots.length ? { slots: radSlots, thickness: config.cpu.aio.thickness } : null;
 
-    return { mobo, socket, cpuCooler, gpu, shroud, pcie: { top: pcieTop, bottom: pcieBottom }, radiator };
+    return { mobo, socket, cpuCooler, gpu, shroud, pcie: { top: pcieTop, bottom: pcieBottom }, radiator, pcieSlots, board };
   }
 
   function clearanceIssues(config, slots, comps) {
@@ -165,6 +175,25 @@
     const coolerClearance = c.width - 55;
     if (cooler.type !== 'aio' && cooler.height > coolerClearance) {
       issues.push({ level: 'error', text: `CPU cooler (${cooler.height} mm tall) exceeds the ~${coolerClearance} mm side clearance.` });
+    }
+    const m = comps.mobo;
+    if (m.x + m.w > c.depth - (frontUsed ? P.fanThickness : 0)) {
+      issues.push({ level: 'error', text: `The ${m.w} mm wide motherboard does not fit: only ${Math.round(c.depth - m.x - (frontUsed ? P.fanThickness : 0))} mm of depth before the front fans.` });
+    }
+    if (m.y + m.h > c.height) {
+      issues.push({ level: 'error', text: `The ${m.h} mm tall motherboard does not fit in a ${c.height} mm tall case.` });
+    }
+    if (m.y + m.h > shroudTop(config) + 20 && c.shroud && m.h > 250) {
+      issues.push({ level: 'info', text: 'The bottom of the motherboard sits behind the PSU shroud. Its lowest PCIe slots are unusable for cards.' });
+    }
+    if (cooler.type === 'tower' && comps.cpuCooler.y + comps.cpuCooler.h > comps.gpu.pcbTop - 3) {
+      issues.push({ level: 'warn', text: 'The tower cooler hangs over the GPU slot. Check clearance against the GPU backplate, or use a board with the x16 slot lower.' });
+    }
+    if (comps.cpuCooler.y < P.fanThickness + 5) {
+      const topStack = P.fanThickness + (comps.radiator && config.cpu.aio.panel === 'top' ? comps.radiator.thickness : 0);
+      const overlaps = slots.some((s) => s.panel === 'top' && slotConfig(config, s.id).mode !== 'empty'
+        && Math.abs(s.cx - (comps.cpuCooler.x + comps.cpuCooler.w / 2)) < (s.size + comps.cpuCooler.w) / 2);
+      if (overlaps && comps.cpuCooler.y < topStack) issues.push({ level: 'error', text: 'The CPU cooler collides with the top fans. The socket is too close to the top of the case.' });
     }
     if (comps.radiator) {
       const needed = config.cpu.aio.fans;
@@ -193,7 +222,7 @@
     return { slots, components, issues, shroudTop: shroudTop(config) };
   }
 
-  AF.geometry = { layout, slotConfig, frontSlotCapacity };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);

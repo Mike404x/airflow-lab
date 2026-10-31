@@ -159,7 +159,7 @@ function edgeCaseTests() {
     },
     'custom fan': (c) => { c.slots['front-0'] = { mode: 'intake', fan: 'custom', custom: { cfm: 120, mmh2o: 6, rpm: 3000 }, speed: 1 }; },
     'empty radiator': (c) => { c.cpu.cooler = 'aio'; c.cpu.aio = { panel: 'top', fans: 2, thickness: 45, pushPull: true }; },
-    'tiny case': (c) => { c.case.height = 280; c.case.depth = 280; c.case.width = 150; c.case.formFactor = 'itx'; },
+    'tiny case': (c) => { c.case.height = 280; c.case.depth = 280; c.case.width = 150; c.case.motherboard = AF.data.motherboardConfig('itx'); },
     'giant case': (c) => { c.case.height = 700; c.case.depth = 650; c.case.width = 350; c.case.shroud = false; },
   };
   for (const [name, mutate] of Object.entries(scenarios)) {
@@ -181,7 +181,39 @@ function edgeCaseTests() {
   }
 }
 
+function motherboardTests() {
+  const base = clone(AF.data.PRESETS[0].config);
+  const gpuTop = (id) => {
+    const c = clone(base);
+    c.case.motherboard = AF.data.motherboardConfig(id);
+    return AF.geometry.layout(c).components.gpu.pcbTop;
+  };
+  check('slot 1 GPU sits higher than slot 2', gpuTop('atx-slot1') < gpuTop('atx-slot2'));
+  check('slot 3 GPU sits lower than slot 2', gpuTop('atx-slot3') > gpuTop('atx-slot2'));
+  const low = clone(base);
+  low.case.motherboard = AF.data.motherboardConfig('atx-low-socket');
+  check('low socket moves CPU cooler down', AF.geometry.layout(low).components.cpuCooler.y > AF.geometry.layout(base).components.cpuCooler.y);
+  const eatx = clone(base);
+  eatx.case.motherboard = AF.data.motherboardConfig('eatx');
+  eatx.case.depth = 330;
+  check('E-ATX in a shallow case is flagged', AF.geometry.layout(eatx).issues.some((i) => i.level === 'error' && /motherboard/.test(i.text)));
+  const legacy = clone(base);
+  delete legacy.case.motherboard;
+  legacy.case.formFactor = 'itx';
+  check('legacy formFactor still resolves', AF.geometry.motherboardOf(legacy).model === 'itx');
+  for (const m of AF.data.MOTHERBOARDS) {
+    const c = clone(base);
+    c.case.motherboard = AF.data.motherboardConfig(m.id);
+    const { layout, air, thermal } = solve(c);
+    const sim = new AF.CaseSim(c, layout, air, thermal, null);
+    sim.advance(120);
+    check(`${m.id}: CFD finite`, sim.T.every(Number.isFinite));
+    check(`${m.id}: temps finite`, Number.isFinite(thermal.cpu.temp) && Number.isFinite(thermal.gpu.temp));
+  }
+}
+
 fanCurveTests();
+motherboardTests();
 edgeCaseTests();
 balanceTests();
 thermalTests();

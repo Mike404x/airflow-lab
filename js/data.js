@@ -42,7 +42,6 @@
     panelEdge: 15,
     topRearOffset: 45,
     gpuPcbThickness: 6,
-    gpuSlotTopOffset: 150,
   };
 
   const FANS = [
@@ -80,11 +79,23 @@
     side: { name: 'Side panel', sizes: [120, 140] },
   };
 
-  const FORM_FACTORS = {
-    atx: { name: 'ATX', width: 244, height: 305, socketX: 0.58, socketY: 75 },
-    matx: { name: 'Micro-ATX', width: 244, height: 244, socketX: 0.58, socketY: 75 },
-    itx: { name: 'Mini-ITX', width: 170, height: 170, socketX: 0.6, socketY: 70 },
-  };
+  const MOTHERBOARDS = [
+    { id: 'atx-slot2', name: 'ATX · GPU in slot 2 (most common)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 75, slot1Y: 130, slotCount: 7, x16Slot: 2 },
+    { id: 'atx-slot1', name: 'ATX · GPU in slot 1 (GPU close to CPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 70, slot1Y: 130, slotCount: 7, x16Slot: 1 },
+    { id: 'atx-slot3', name: 'ATX · GPU in slot 3 (M.2 above GPU)', form: 'ATX', width: 244, height: 305, socketX: 141, socketY: 78, slot1Y: 130, slotCount: 7, x16Slot: 3 },
+    { id: 'atx-low-socket', name: 'ATX · low socket, large VRM area', form: 'ATX', width: 244, height: 305, socketX: 135, socketY: 92, slot1Y: 130, slotCount: 7, x16Slot: 2 },
+    { id: 'eatx', name: 'E-ATX (305 × 330 mm)', form: 'E-ATX', width: 330, height: 305, socketX: 165, socketY: 80, slot1Y: 130, slotCount: 7, x16Slot: 1 },
+    { id: 'matx', name: 'Micro-ATX', form: 'mATX', width: 244, height: 244, socketX: 141, socketY: 75, slot1Y: 130, slotCount: 4, x16Slot: 1 },
+    { id: 'itx', name: 'Mini-ITX', form: 'ITX', width: 170, height: 170, socketX: 102, socketY: 70, slot1Y: 130, slotCount: 1, x16Slot: 1 },
+  ];
+
+  function motherboardConfig(id) {
+    const m = MOTHERBOARDS.find((x) => x.id === id) || MOTHERBOARDS[0];
+    return { model: m.id, width: m.width, height: m.height, socketX: m.socketX, socketY: m.socketY, slot1Y: m.slot1Y, slotCount: m.slotCount, x16Slot: m.x16Slot };
+  }
+
+  const LEGACY_FORM_FACTORS = { atx: 'atx-slot2', matx: 'matx', itx: 'itx' };
+
 
   const CPUS = [
     { id: 'r5-7600', name: 'AMD Ryzen 5 7600', power: 88, rjc: 0.33, tjmax: 95 },
@@ -168,7 +179,7 @@
       case: {
         name: 'Mesh mid-tower',
         height: 470, depth: 450, width: 230,
-        formFactor: 'atx', shroud: true, pcieVented: true, frontSlots: 3,
+        motherboard: motherboardConfig('atx-slot2'), shroud: true, pcieVented: true, frontSlots: 3,
         panels: {
           front: { type: 'mesh', fanSize: 140 },
           top: { type: 'mesh', fanSize: 140 },
@@ -264,7 +275,7 @@
     preset('itx', 'Compact Mini-ITX', (c) => {
       c.case.name = 'Compact Mini-ITX';
       c.case.height = 380; c.case.depth = 370; c.case.width = 200;
-      c.case.formFactor = 'itx';
+      c.case.motherboard = motherboardConfig('itx');
       c.case.shroud = false;
       c.case.panels.front = { type: 'mesh', fanSize: 120 };
       c.case.panels.top = { type: 'mesh', fanSize: 120 };
@@ -290,7 +301,7 @@
   ];
 
   AF.data = {
-    UNITS, PHYSICS, FANS, PANEL_TYPES, FILTERS, PANELS, FORM_FACTORS,
+    UNITS, PHYSICS, FANS, PANEL_TYPES, FILTERS, PANELS, MOTHERBOARDS, motherboardConfig, LEGACY_FORM_FACTORS,
     CPUS, CPU_COOLERS, RADIATOR_THICKNESS, GPUS, GPU_COOLERS, PRESETS, baseConfig,
   };
 

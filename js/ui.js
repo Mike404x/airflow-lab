@@ -132,8 +132,6 @@
         field('Height (mm)', number(c.height, 280, 700, 1, (v) => update((cfg) => { cfg.case.height = v; }))),
         field('Depth (mm)', number(c.depth, 280, 650, 1, (v) => update((cfg) => { cfg.case.depth = v; }))),
         field('Width (mm)', number(c.width, 150, 350, 1, (v) => update((cfg) => { cfg.case.width = v; })))),
-      field('Motherboard', select(Object.entries(D.FORM_FACTORS).map(([v, f]) => ({ value: v, label: f.name })), c.formFactor,
-        (v) => update((cfg) => { cfg.case.formFactor = v; }))),
       h('div', { class: 'row' },
         checkbox(c.shroud, (v) => update((cfg) => { cfg.case.shroud = v; }), 'PSU shroud'),
         checkbox(c.pcieVented, (v) => update((cfg) => { cfg.case.pcieVented = v; }), 'Vented PCIe slot covers')),
@@ -145,6 +143,26 @@
       h('button', { class: 'btn small', onclick: () => app.fillFront() }, 'Fill all front mounts with intake fans'),
       h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan size'))), h('tbody', {}, panelRows)),
       h('div', { class: 'hint' }, 'Click a fan slot in the view to set its fan. Empty slots on open panels work as passive vents.')));
+
+    const board = AF.geometry.motherboardOf(config);
+    const setBoard = (patch) => update((cfg) => { cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), patch); });
+    const boardModel = D.MOTHERBOARDS.find((m) => m.id === board.model);
+    const modified = boardModel && ['width', 'height', 'socketX', 'socketY', 'slot1Y', 'x16Slot'].some((k) => boardModel[k] !== board[k]);
+    rootEl.append(section('Motherboard', true,
+      field('Layout', select(D.MOTHERBOARDS.map((m) => ({ value: m.id, label: m.name })), board.model,
+        (v) => update((cfg) => { cfg.case.motherboard = D.motherboardConfig(v); })),
+        modified ? 'Modified from the preset layout.' : null),
+      h('div', { class: 'grid2' },
+        field('Board width (mm)', number(board.width, 150, 360, 1, (v) => setBoard({ width: v }))),
+        field('Board height (mm)', number(board.height, 150, 360, 1, (v) => setBoard({ height: v })))),
+      h('div', { class: 'grid2' },
+        field('Socket from rear edge (mm)', number(board.socketX, 40, board.width - 30, 1, (v) => setBoard({ socketX: v }))),
+        field('Socket from top edge (mm)', number(board.socketY, 35, board.height - 40, 1, (v) => setBoard({ socketY: v })))),
+      h('div', { class: 'grid2' },
+        field('GPU in PCIe slot', select(Array.from({ length: board.slotCount }, (_, k) => ({ value: k + 1, label: `Slot ${k + 1}${k === 0 ? ' (top)' : ''}` })), board.x16Slot,
+          (v) => setBoard({ x16Slot: +v }))),
+        field('Slot 1 from top edge (mm)', number(board.slot1Y, 90, Math.max(91, board.height - 20), 1, (v) => setBoard({ slot1Y: v })))),
+      h('div', { class: 'hint' }, 'The socket position moves the CPU cooler. The slot choice sets how high the GPU sits and how much room it leaves under the cooler and above the shroud. Values are typical layouts; check your board manual for exact positions.')));
 
     const cpu = config.cpu;
     const cooler = D.CPU_COOLERS[cpu.cooler];

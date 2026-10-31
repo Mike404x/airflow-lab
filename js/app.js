@@ -19,11 +19,19 @@
     return out;
   }
 
+  function migrate(parsed) {
+    if (parsed && parsed.case && !parsed.case.motherboard) {
+      parsed.case.motherboard = AF.data.motherboardConfig(AF.data.LEGACY_FORM_FACTORS[parsed.case.formFactor] || 'atx-slot2');
+      delete parsed.case.formFactor;
+    }
+    return parsed;
+  }
+
   function loadConfig() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed = migrate(JSON.parse(raw));
         const merged = mergeDefaults(AF.data.baseConfig(), parsed);
         merged.slots = parsed.slots || {};
         return merged;
@@ -104,7 +112,7 @@
         const file = e.target.files[0];
         if (!file) return;
         try {
-          const parsed = JSON.parse(await file.text());
+          const parsed = migrate(JSON.parse(await file.text()));
           const merged = mergeDefaults(AF.data.baseConfig(), parsed);
           merged.slots = parsed.slots || {};
           this.state.config = merged;

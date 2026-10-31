@@ -222,7 +222,18 @@
       ctx.fillStyle = 'rgba(120,150,190,0.6)';
       ctx.font = '10px Inter, Segoe UI, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('motherboard', this.X(m.x) + 4, this.Y(m.y + m.h) - 4);
+      ctx.fillText(`motherboard (${comps.board.width}×${comps.board.height})`, this.X(m.x) + 4, this.Y(m.y + m.h) - 4);
+      for (const s of comps.pcieSlots) {
+        ctx.fillStyle = s.primary ? 'rgba(255,213,74,0.75)' : 'rgba(120,150,190,0.45)';
+        ctx.fillRect(this.X(m.x + 15), this.Y(s.y - 1), this.S(89), Math.max(2, this.S(2)));
+        ctx.fillStyle = 'rgba(120,150,190,0.7)';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${s.index}`, this.X(m.x + 12), this.Y(s.y) + 3);
+        ctx.textAlign = 'left';
+      }
+      ctx.strokeStyle = 'rgba(255,213,74,0.6)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(this.X(comps.socket.x - 20), this.Y(comps.socket.y - 20), this.S(40), this.S(40));
 
       if (comps.shroud) {
         const y = comps.shroud.y;
