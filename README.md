@@ -8,6 +8,16 @@ Open `index.html` in a browser (no build step, no server, no dependencies).
 
 Tests: `node tests/run-tests.js`
 
+## 3D view
+
+The **2D / 3D** switch above the simulation turns the view into an interactive 3D model built from the same geometry. It shows the case panels, the glass side panel, the motherboard with RAM and slots, the CPU cooler (fin stacks, fans, AIO pump, tubes and radiators), the graphics card, the PSU shroud, and every case fan and extra fan with spinning blades and flow arrows. It also shows the live CFD heat map as a slice through the case and the airflow particles as streaks.
+
+- Drag to orbit, scroll to zoom, right-drag to pan.
+- **Click any part to make it transparent**, and click it again to make it solid. Clicks pass through see-through panels such as glass and mesh.
+- The **render options** button (layers icon) toggles each layer, makes everything solid again, and resets the camera.
+
+The 3D view uses three.js r147 (MIT license), vendored in `vendor/three/` so the app still works offline straight from disk. The CFD is still the 2D side-view simulation; the 3D view displays it, it does not add a third dimension to the physics.
+
 ## Component catalog
 
 Pick real parts instead of typing dimensions. Every picker has a search box, and the raw numbers stay editable under "details".

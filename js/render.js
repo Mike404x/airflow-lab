@@ -646,7 +646,7 @@
     }
   }
 
-  AF.render = { CaseRenderer, colorAt, gradientCss };
+  AF.render = { CaseRenderer, colorAt, gradientCss, LUT };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);

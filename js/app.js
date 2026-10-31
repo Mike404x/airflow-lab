@@ -85,6 +85,7 @@
       };
       AF.ui.hydrateIcons(document);
       this.renderer = new AF.render.CaseRenderer(this.dom.canvas);
+      this.view3d = AF.View3D ? new AF.View3D(this.dom.canvas.parentElement, this) : null;
       this.state.config = loadConfig();
       for (const p of AF.data.PRESETS) this.dom.presets.append(AF.ui.h('option', { value: p.id }, p.name));
       this.bindToolbar();
@@ -155,6 +156,17 @@
       });
       document.querySelectorAll('#rightTabs .tab').forEach((tab) => tab.addEventListener('click', () => this.showTab(tab.dataset.tab)));
       document.getElementById('btnAddFan').addEventListener('click', () => this.addCustomFan());
+      document.getElementById('btn2d').addEventListener('click', () => this.setMode3d(false));
+      document.getElementById('btn3d').addEventListener('click', () => this.setMode3d(true));
+      const layersBtn = document.getElementById('btnLayers');
+      const popover = document.getElementById('layersPopover');
+      layersBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.buildLayersPopover();
+        popover.classList.toggle('open');
+      });
+      popover.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => popover.classList.remove('open'));
       document.getElementById('btnRestart').addEventListener('click', () => {
         this.state.sim = null;
         this.recompute(false);
@@ -239,6 +251,41 @@
       AF.ui.buildEditor(this.dom.editor, this);
       this.renderPanels();
       this.showTab('inspect');
+    },
+
+    setMode3d(on) {
+      const st = this.state;
+      if (on && (!this.view3d || !this.view3d.supported)) {
+        document.getElementById('btn3d').dataset.tip = '3D needs WebGL, which is not available in this browser';
+        return;
+      }
+      st.mode3d = on;
+      document.getElementById('btn2d').classList.toggle('active', !on);
+      document.getElementById('btn3d').classList.toggle('active', on);
+      document.querySelector('.viewport').classList.toggle('is-3d', on);
+      this.dom.canvas.style.display = on ? 'none' : 'block';
+      this.dom.tooltip.style.display = 'none';
+      if (this.view3d) this.view3d.setActive(on, st);
+      if (!on) document.getElementById('layersPopover').classList.remove('open');
+    },
+
+    buildLayersPopover() {
+      const v = this.view3d;
+      const h = AF.ui.h;
+      const pop = document.getElementById('layersPopover');
+      if (!v || !v.supported) return;
+      const rows = AF.View3D.LAYERS.map(([key, label]) => {
+        const input = h('input', { type: 'checkbox', onchange: (e) => v.setOption(key, e.target.checked) });
+        input.checked = v.options[key] !== false;
+        return h('label', { class: 'check pop-row' }, input, label);
+      });
+      pop.replaceChildren(
+        h('div', { class: 'pop-title' }, AF.ui.icon('layers'), 'Render options'),
+        h('div', { class: 'pop-list' }, rows),
+        h('div', { class: 'pop-hint' }, 'Click any part in the 3D view to make it transparent. Click it again to make it solid.'),
+        h('div', { class: 'pop-actions' },
+          h('button', { class: 'btn sm', onclick: () => v.resetTransparency() }, AF.ui.icon('eye'), 'All solid'),
+          h('button', { class: 'btn sm', onclick: () => v.resetView() }, AF.ui.icon('reset'), 'Reset view')));
     },
 
     showTab(name) {
@@ -377,6 +424,7 @@
       if (st.sim.time < 0.5) st.simThermal = null;
       st.simStats = st.sim.stats();
       this.fmt = AF.ui.createFormatter(st.config);
+      if (st.mode3d && this.view3d) this.view3d.build(st);
       this.refreshThermal();
       const customSelected = st.selection && st.selection.startsWith('cf-') && st.layout.customFans.some((f) => f.id === st.selection);
       if (!customSelected && !st.layout.slots.some((s) => s.id === st.selection) && st.selection !== 'cpu-cooler' && st.selection !== 'gpu-cooler') {
@@ -457,7 +505,7 @@
           this.dom.status.innerHTML = `<span class="live ${state}"></span>${label} · t = ${sim.time.toFixed(1)} s · ${sim.nx - 2}×${sim.ny - 2} grid`;
         }
       }
-      this.draw();
+      if (st.mode3d && this.view3d) this.view3d.update(st, realDt); else this.draw();
       requestAnimationFrame((t) => this.frame(t));
     },
   };

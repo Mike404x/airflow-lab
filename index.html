@@ -39,13 +39,23 @@
         <div class="viewport">
           <canvas id="caseCanvas"></canvas>
           <div class="float top-left">
-            <div class="segmented glass">
-              <button class="seg active" data-view="temperature">Temperature</button>
-              <button class="seg" data-view="speed">Air speed</button>
-              <button class="seg" data-view="none">Streamlines</button>
+            <div class="segmented glass icon-seg">
+              <button class="seg icon active" data-view="temperature" data-tip="Temperature" data-icon="thermo"></button>
+              <button class="seg icon" data-view="speed" data-tip="Air speed" data-icon="wind"></button>
+              <button class="seg icon" data-view="none" data-tip="Streamlines only" data-icon="waves"></button>
             </div>
-            <button class="chip glass active" id="chkParticles" title="Show moving air particles"><span data-icon="sparkle"></span>Particles</button>
-            <button class="chip glass" id="btnAddFan" title="Add an extra fan (choose its position in the inspector)"><span data-icon="plus"></span>Add fan</button>
+            <div class="segmented glass icon-seg">
+              <button class="seg icon active" id="chkParticles" data-tip="Particles" data-icon="sparkle"></button>
+              <button class="seg icon" id="btnAddFan" data-tip="Add fan" data-icon="plus"></button>
+            </div>
+            <div class="segmented glass mode-switch">
+              <button class="seg active" id="btn2d" data-tip="2D side view">2D</button>
+              <button class="seg" id="btn3d" data-tip="3D view">3D</button>
+            </div>
+            <div class="popover-wrap">
+              <button class="icon-btn glass layers-btn" id="btnLayers" data-tip="3D render options" data-icon="layers"></button>
+              <div class="popover glass" id="layersPopover"></div>
+            </div>
           </div>
           <div class="float top-right">
             <div class="glass sim-controls">
@@ -54,8 +64,8 @@
                 <option value="4">4×</option>
                 <option value="max" selected>Max speed</option>
               </select>
-              <button id="btnPlay" class="icon-btn ghost" title="Pause simulation" data-icon="pause"></button>
-              <button id="btnRestart" class="icon-btn ghost" title="Restart CFD" data-icon="restart"></button>
+              <button id="btnPlay" class="icon-btn ghost" data-tip="Pause simulation" data-icon="pause"></button>
+              <button id="btnRestart" class="icon-btn ghost" data-tip="Restart CFD" data-icon="restart"></button>
             </div>
           </div>
           <div class="float bottom-left"><div id="legend" class="legend glass"></div></div>
@@ -82,7 +92,10 @@
   <script src="js/geometry.js"></script>
   <script src="js/physics.js"></script>
   <script src="js/cfd.js"></script>
+  <script src="vendor/three/three.min.js"></script>
+  <script src="vendor/three/OrbitControls.js"></script>
   <script src="js/render.js"></script>
+  <script src="js/view3d.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>
