@@ -537,6 +537,96 @@
     return byId(BOARDS, board.product);
   }
 
+  const BRANDS = [
+    'Cooler Master', 'be quiet!', 'Lian Li', 'Noctua', 'Arctic', 'Corsair', 'Thermalright', 'DeepCool', 'Fractal', 'Phanteks',
+    'Montech', 'Scythe', 'NZXT', 'SilverStone', 'Thermaltake', 'Antec', 'HYTE', 'ASUS', 'Gigabyte', 'MSI', 'Zotac', 'EVGA',
+    'ASRock', 'PowerColor', 'Sapphire', 'XFX', 'PNY', 'AMD', 'Intel', 'NVIDIA', 'Jonsbo', 'Generic',
+  ];
+  const BRAND_ALIASES = [[/^EK-/, 'EK'], [/^RTX /, 'NVIDIA'], [/^RX /, 'AMD'], [/^Arc /, 'Intel'], [/^Ryzen /, 'AMD'], [/^Core /, 'Intel']];
+
+  function brandOf(name) {
+    const lower = name.toLowerCase();
+    const hit = BRANDS.find((b) => lower.startsWith(b.toLowerCase()));
+    if (hit) return hit === 'Fractal' ? 'Fractal Design' : hit;
+    const alias = BRAND_ALIASES.find(([re]) => re.test(name));
+    return alias ? alias[1] : 'Other';
+  }
+
+  const CATEGORY_ORDER = {
+    cpu: ['AMD Ryzen 9000 · AM5', 'AMD Ryzen 7000 · AM5', 'AMD Ryzen 5000 · AM4', 'Intel Core Ultra 200S · LGA1851', 'Intel Core 12th–14th gen · LGA1700'],
+    gpu: ['NVIDIA GeForce RTX 50 series', 'NVIDIA GeForce RTX 40 series', 'NVIDIA GeForce RTX 30 series', 'AMD Radeon RX 9000 series', 'AMD Radeon RX 7000 series', 'AMD Radeon RX 6000 series', 'Intel Arc', 'Workstation (blower)'],
+    cooler: ['Generic', 'Dual-tower air', 'Single-tower air', 'AIO liquid 360 mm', 'AIO liquid 280 mm', 'AIO liquid 240 mm', 'Low-profile air', 'Stock coolers'],
+    case: ['Mid tower', 'Full tower', 'Dual chamber', 'Micro-ATX', 'Mini-ITX'],
+    board: ['AMD AM5', 'AMD AM4', 'Intel LGA1851', 'Intel LGA1700'],
+  };
+
+  function categoryOf(kind, item) {
+    if (kind === 'cpu') {
+      const m = item.group.match(/^(AMD|Intel) (.+?) \((.+)\)$/);
+      return m ? `${m[1]} ${m[2]} · ${m[3]}` : item.group;
+    }
+    if (kind === 'gpu') {
+      if (item.cooler === 'blower' || /Workstation/.test(item.group)) return 'Workstation (blower)';
+      const rtx = item.name.match(/RTX (\d)0\d0/);
+      if (rtx) return `NVIDIA GeForce RTX ${rtx[1]}0 series`;
+      const rx = item.name.match(/RX (\d)\d{3}/);
+      if (rx) return `AMD Radeon RX ${rx[1]}000 series`;
+      if (/Arc/.test(item.name)) return 'Intel Arc';
+      return item.group;
+    }
+    if (kind === 'cooler') {
+      if (item.id.startsWith('generic-')) return 'Generic';
+      if (item.type === 'aio') return `AIO liquid ${item.aio.fans * item.aio.size} mm`;
+      return { 'tower-dual': 'Dual-tower air', 'tower-single': 'Single-tower air', lowprofile: 'Low-profile air', stock: 'Stock coolers' }[item.type];
+    }
+    if (kind === 'case') {
+      if (/Mini-ITX/i.test(item.name)) return 'Mini-ITX';
+      if (/Micro-ATX/i.test(item.name)) return 'Micro-ATX';
+      if (/dual chamber|side-intake/i.test(item.name) || (!item.shroud && item.panels.front.type === 'solid')) return 'Dual chamber';
+      if (/full tower/i.test(item.name) || item.height >= 540) return 'Full tower';
+      return 'Mid tower';
+    }
+    return item.group;
+  }
+
+  function brandForItem(kind, item) {
+    if (kind === 'case') return item.group;
+    if (kind === 'cpu') return item.group.split(' ')[0];
+    if (kind === 'cooler' && item.id.startsWith('generic-')) return 'Generic';
+    return brandOf(item.name);
+  }
+
+  function categorize(kind, list) {
+    const order = CATEGORY_ORDER[kind] || [];
+    const groups = new Map();
+    for (const item of list) {
+      const label = categoryOf(kind, item);
+      if (!groups.has(label)) groups.set(label, []);
+      const brand = brandForItem(kind, item);
+      const shown = kind === 'gpu' && !item.name.toLowerCase().startsWith(brand.toLowerCase()) ? `${brand} ${item.name}` : item.name;
+      groups.get(label).push({ value: item.id, label: item.approx ? `${shown} ≈` : shown, brand, name: shown });
+    }
+    const rank = (label) => { const i = order.indexOf(label); return i < 0 ? order.length : i; };
+    return Array.from(groups.entries())
+      .sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]))
+      .map(([label, options]) => ({
+        label,
+        options: options.sort((a, b) => a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name, undefined, { numeric: true })),
+      }));
+  }
+
+  function fanGroups(size) {
+    const groups = new Map();
+    for (const f of D.FANS.filter((x) => x.size === size)) {
+      const brand = brandOf(f.name);
+      if (!groups.has(brand)) groups.set(brand, []);
+      groups.get(brand).push({ value: f.id, label: fanLabel(f), brand, name: f.name });
+    }
+    return Array.from(groups.entries())
+      .sort((a, b) => (a[0] === 'Generic') - (b[0] === 'Generic') || a[0].localeCompare(b[0]))
+      .map(([label, options]) => ({ label, options: options.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })) }));
+  }
+
   D.FANS.push(...EXTRA_FANS.filter((f) => !D.FANS.some((x) => x.id === f.id)));
   if (!D.PANELS.front.sizes.includes(160)) D.PANELS.front.sizes.splice(2, 0, 160);
   if (!D.PANELS.front.sizes.includes(180)) D.PANELS.front.sizes.splice(3, 0, 180);
@@ -544,7 +634,7 @@
 
   AF.catalog = {
     CPUS, GPUS, COOLERS, BOARDS, CASES, byId, fanLabel, cpuCooler, gpuCooler,
-    applyCpu, applyGpu, applyBoard, applyCooler, applyCase, supportCap, supportedSizes, boardOf, cpuPower, gpuPower,
+    applyCpu, applyGpu, applyBoard, applyCooler, applyCase, supportCap, supportedSizes, boardOf, cpuPower, gpuPower, brandOf, categorize, fanGroups,
   };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;

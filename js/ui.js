@@ -193,9 +193,21 @@
   }
 
   function fanOptions(size) {
-    return AF.data.FANS.filter((f) => f.size === size)
-      .map((f) => ({ value: f.id, label: AF.catalog.fanLabel(f) }))
-      .concat([{ value: 'custom', label: 'Custom fan…' }]);
+    return AF.catalog.fanGroups(size).concat([{ label: 'Custom', options: [{ value: 'custom', label: 'Custom fan…' }] }]);
+  }
+
+  function groupedSelect(groups, value, onChange) {
+    const el = h('select', { onchange: (e) => onChange(e.target.value) });
+    for (const g of groups) {
+      const og = h('optgroup', { label: g.label });
+      for (const o of g.options) {
+        const opt = h('option', { value: o.value }, o.label);
+        if (String(o.value) === String(value)) opt.selected = true;
+        og.append(opt);
+      }
+      el.append(og);
+    }
+    return el;
   }
 
   function customFanFields(custom, onChange) {
@@ -210,34 +222,33 @@
   const pct = (v) => `${Math.round(v * 100)}%`;
   const CUSTOM = '__custom';
 
-  function groupOptions(list) {
-    const groups = [];
-    for (const item of list) {
-      let g = groups.find((x) => x.label === item.group);
-      if (!g) groups.push(g = { label: item.group, options: [] });
-      g.options.push({ value: item.id, label: item.approx ? `${item.name} ≈` : item.name });
-    }
-    return groups;
-  }
-
   function picker(groups, value, onChange, customLabel) {
     const sel = h('select', { onchange: (e) => { if (e.target.value) onChange(e.target.value); } });
     const search = h('input', { type: 'search', class: 'picker-search', placeholder: 'Search…' });
     const known = groups.some((g) => g.options.some((o) => o.value === value));
-    const fill = (query) => {
+    const brandCounts = new Map();
+    for (const g of groups) for (const o of g.options) if (o.brand) brandCounts.set(o.brand, (brandCounts.get(o.brand) || 0) + 1);
+    const brands = Array.from(brandCounts.keys()).sort((x, y) => (x === 'Generic') - (y === 'Generic') || x.localeCompare(y));
+    const brandSel = brands.length > 1 ? h('select', { class: 'picker-brand', title: 'Filter by manufacturer' },
+      h('option', { value: '' }, 'All brands'),
+      brands.map((b) => h('option', { value: b }, `${b} (${brandCounts.get(b)})`))) : null;
+    const fill = () => {
       sel.replaceChildren();
-      const needle = query.trim().toLowerCase();
+      const needle = search.value.trim().toLowerCase();
+      const brand = brandSel ? brandSel.value : '';
+      const filtering = needle || brand;
       const matches = groups.map((g) => ({
         label: g.label,
-        options: g.options.filter((o) => !needle || `${g.label} ${o.label}`.toLowerCase().includes(needle)),
+        options: g.options.filter((o) => (!brand || o.brand === brand) && (!needle || `${g.label} ${o.brand || ''} ${o.label}`.toLowerCase().includes(needle))),
       })).filter((g) => g.options.length);
-      if (needle) {
+      if (filtering) {
         const count = matches.reduce((n, g) => n + g.options.length, 0);
+        const current = matches.some((g) => g.options.some((o) => o.value === value));
         const hintOpt = h('option', { value: '', disabled: true }, count ? `${count} match${count > 1 ? 'es' : ''}, choose one…` : 'No matches');
-        hintOpt.selected = true;
+        if (!current) hintOpt.selected = true;
         sel.append(hintOpt);
       }
-      if (customLabel && !needle) {
+      if (customLabel && !filtering) {
         const opt = h('option', { value: CUSTOM }, customLabel);
         if (!known) opt.selected = true;
         sel.append(opt);
@@ -246,15 +257,16 @@
         const og = h('optgroup', { label: g.label });
         for (const o of g.options) {
           const opt = h('option', { value: o.value }, o.label);
-          if (!needle && o.value === value) opt.selected = true;
+          if (o.value === value) opt.selected = true;
           og.append(opt);
         }
         sel.append(og);
       }
     };
-    search.addEventListener('input', () => fill(search.value));
-    fill('');
-    return h('div', { class: 'picker' }, search, sel);
+    search.addEventListener('input', fill);
+    if (brandSel) brandSel.addEventListener('change', fill);
+    fill();
+    return h('div', { class: 'picker' }, h('div', { class: `picker-filters ${brandSel ? 'with-brand' : ''}` }, search, brandSel), sel);
   }
 
   function details(title, open, ...children) {
@@ -300,7 +312,7 @@
         })))));
     const frontCap = AF.geometry.frontSlotCapacity(config);
     sections.push(section('Case', true,
-      field('Case model', picker(groupOptions(C.CASES), c.model, (v) => {
+      field('Case model', picker(C.categorize('case', C.CASES), c.model, (v) => {
         if (v === CUSTOM) editDims(() => {}); else update((cfg) => C.applyCase(cfg, v));
       }, 'Custom / generic case')),
       caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed${caseEntry.approx ? ' · ≈ approximate specs, check your case' : caseEntry.stockApprox ? ' (bundled fan set is approximate, check your case)' : ''}`) : null,
@@ -329,7 +341,7 @@
     const setBoard = (patch) => update((cfg) => { cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), patch); });
     const layoutEntry = D.MOTHERBOARDS.find((m) => m.id === board.model);
     sections.push(section('Motherboard', true,
-      field('Motherboard', picker(groupOptions(C.BOARDS), board.product, (v) => update((cfg) => {
+      field('Motherboard', picker(C.categorize('board', C.BOARDS), board.product, (v) => update((cfg) => {
         if (v === CUSTOM) cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), { product: null, socket: null });
         else C.applyBoard(cfg, v);
       }), 'Generic board (choose layout)')),
@@ -352,7 +364,7 @@
     const cpu = config.cpu;
     const cpuEntry = C.byId(C.CPUS, cpu.model);
     sections.push(section('Processor', true,
-      field('CPU', picker(groupOptions(C.CPUS), cpu.model, (v) => update((cfg) => {
+      field('CPU', picker(C.categorize('cpu', C.CPUS), cpu.model, (v) => update((cfg) => {
         if (v === CUSTOM) { cfg.cpu.model = 'custom'; cfg.cpu.socket = null; } else C.applyCpu(cfg, v);
       }), 'Custom CPU')),
       summary(`${cpuEntry ? `${cpuEntry.socket} · ` : ''}${cpu.power} W (${config.workload === 'gaming' ? 'gaming' : 'full load'}) · Tjmax ${cpu.tjmax} °C`),
@@ -364,12 +376,12 @@
 
     const cooler = C.cpuCooler(config);
     const coolerChildren = [
-      field('Cooler', picker(groupOptions(C.COOLERS), cpu.coolerModel || `generic-${cpu.cooler}`, (v) => update((cfg) => C.applyCooler(cfg, v)))),
+      field('Cooler', picker(C.categorize('cooler', C.COOLERS), cpu.coolerModel || `generic-${cpu.cooler}`, (v) => update((cfg) => C.applyCooler(cfg, v)))),
       cooler.type !== 'aio' ? summary(`${cooler.height} mm tall${cooler.type === 'tower' ? ` · ${cpu.coolerFanCount || cooler.defaultFanCount} × ${cooler.fanSize} mm fan` : ''}`) : null,
     ];
     if (cooler.type === 'tower') {
       coolerChildren.push(
-        field(`Cooler fan (${cooler.fanSize} mm)`, select(fanOptions(cooler.fanSize), cpu.coolerFan, (v) => update((cfg) => { cfg.cpu.coolerFan = v; }))),
+        field(`Cooler fan (${cooler.fanSize} mm)`, groupedSelect(fanOptions(cooler.fanSize), cpu.coolerFan, (v) => update((cfg) => { cfg.cpu.coolerFan = v; }))),
         cpu.coolerFan === 'custom' ? customFanFields(cpu.coolerCustom, (v) => update((cfg) => { cfg.cpu.coolerCustom = Object.assign(v, { size: cooler.fanSize }); })) : null,
         field('Fans on cooler', select(Array.from({ length: cooler.maxFanCount }, (_, k) => ({ value: k + 1, label: k === 0 ? '1 fan' : `${k + 1} fans (series)` })), cpu.coolerFanCount,
           (v) => update((cfg) => { cfg.cpu.coolerFanCount = +v; }))));
@@ -400,7 +412,7 @@
     const gpuCooler = C.gpuCooler(config);
     const thicknessOptions = Array.from(new Set([1, 2, 2.5, 3, 3.5, 4, gpu.slots])).sort((a, b) => a - b);
     sections.push(section('Graphics card', true,
-      field('GPU', picker(groupOptions(C.GPUS), gpu.model, (v) => update((cfg) => {
+      field('GPU', picker(C.categorize('gpu', C.GPUS), gpu.model, (v) => update((cfg) => {
         if (v === CUSTOM) cfg.gpu.model = 'custom'; else C.applyGpu(cfg, v);
       }), 'Custom GPU')),
       summary(`${gpu.length} mm · ${gpu.slots} slot · ${gpu.power} W · ${gpuCooler.type === 'blower' ? 'blower' : `${gpu.fanCount || gpuCooler.fanCount} fans${gpuCooler.flowThrough ? ', flow-through' : ''}`}${gpuEntry && gpuEntry.approx ? ' · ≈ approximate dimensions' : ''}`),
@@ -470,7 +482,7 @@
         body.append(h('p', { class: 'hint' }, 'AIO radiator fans are the case fans on the radiator slots. Select them in the view to edit.'));
       } else {
         if (cooler.type === 'tower') {
-          body.append(field('Fan model', select(fanOptions(cooler.fanSize), config.cpu.coolerFan, (v) => update((cfg) => { cfg.cpu.coolerFan = v; }))));
+          body.append(field('Fan model', groupedSelect(fanOptions(cooler.fanSize), config.cpu.coolerFan, (v) => update((cfg) => { cfg.cpu.coolerFan = v; }))));
         }
         body.append(field('Fan speed', slider(config.cpu.coolerFanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.cpu.coolerFanSpeed = v; }))));
       }
@@ -504,7 +516,7 @@
       body.append(modes);
       if (sc.mode !== 'empty') {
         const fanValue = sc.fan === 'custom' || D.FANS.some((f) => f.id === sc.fan && f.size === slot.size) ? sc.fan : (D.FANS.find((f) => f.size === slot.size) || {}).id;
-        body.append(field('Fan model', select(fanOptions(slot.size), fanValue, (v) => setSlot({ fan: v }))));
+        body.append(field('Fan model', groupedSelect(fanOptions(slot.size), fanValue, (v) => setSlot({ fan: v }))));
         if (sc.fan === 'custom') body.append(customFanFields(sc.custom, (v) => setSlot({ custom: v })));
         const spec = AF.physics.fanSpecForSlot(sc, slot.size);
         body.append(field('Speed', slider(sc.speed, 0, 1, 0.01, (v) => `${pct(v)} · ${Math.round(spec.rpm * v)} rpm`, (v) => setSlot({ speed: v }, true))));

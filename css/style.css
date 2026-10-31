@@ -433,3 +433,7 @@ td.mode { font-size: 11px; }
   .brand-sub, .template-label { display: none; }
   .topbar-actions { min-width: 0; }
 }
+
+.picker-filters { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.picker-filters.with-brand { grid-template-columns: minmax(0, 1fr) 128px; }
+.picker-brand { font-size: 12px; color: var(--text-2); }
