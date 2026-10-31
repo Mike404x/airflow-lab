@@ -125,6 +125,24 @@
     return AF.data.motherboardConfig(AF.data.LEGACY_FORM_FACTORS[c.formFactor] || 'atx-slot2');
   }
 
+  function towerFans(config, cooler, cc) {
+    const ft = AF.data.PHYSICS.fanThickness;
+    const dual = config.cpu.cooler === 'tower-dual';
+    const count = Math.max(1, Math.min(cooler.maxFanCount || 1, config.cpu.coolerFanCount || cooler.defaultFanCount || 1));
+    const order = dual ? ['front', 'middle', 'rear'] : ['front', 'rear'];
+    const x = { front: cc.x + cc.w, middle: cc.x + cc.w / 2 - ft / 2, rear: cc.x - ft };
+    const fy = cc.y + cc.h / 2 - cooler.fanSize / 2;
+    const fans = order.slice(0, count).map((role) => ({ role, x: x[role], y: fy, w: ft, h: cooler.fanSize }));
+    const towers = dual
+      ? [{ x: cc.x, w: cc.w / 2 - ft / 2 }, { x: cc.x + cc.w / 2 + ft / 2, w: cc.w / 2 - ft / 2 }]
+      : [{ x: cc.x, w: cc.w }];
+    const left = Math.min(cc.x, ...fans.map((f) => f.x));
+    const right = Math.max(cc.x + cc.w, ...fans.map((f) => f.x + f.w));
+    const top = Math.min(cc.y, fy);
+    const bottom = Math.max(cc.y + cc.h, fy + cooler.fanSize);
+    return { fans, towers, bounds: { x: left, y: top, w: right - left, h: bottom - top } };
+  }
+
   function buildComponents(config, slots) {
     const P = AF.data.PHYSICS;
     const c = config.case;
@@ -140,9 +158,11 @@
     let cpuCooler;
     if (cooler.type === 'tower') {
       cpuCooler = { type: 'tower', x: socket.x - cooler.depth / 2, y: socket.y - 5 - cooler.finHeight / 2, w: cooler.depth, h: cooler.finHeight };
+      Object.assign(cpuCooler, towerFans(config, cooler, cpuCooler));
     } else {
       const f = cooler.footprint;
       cpuCooler = { type: cooler.type, x: socket.x - f / 2, y: socket.y - f / 2, w: f, h: f };
+      cpuCooler.bounds = { x: cpuCooler.x, y: cpuCooler.y, w: f, h: f };
     }
 
     const g = config.gpu;
@@ -205,11 +225,11 @@
     if (m.y + m.h > shroudTop(config) + 20 && c.shroud && m.h > 250) {
       issues.push({ level: 'info', text: 'The bottom of the motherboard sits behind the PSU shroud. Its lowest PCIe slots are unusable for cards.' });
     }
-    if (cooler.type === 'tower' && comps.cpuCooler.y + comps.cpuCooler.h > comps.gpu.pcbTop - 3) {
+    if (cooler.type === 'tower' && comps.cpuCooler.bounds.y + comps.cpuCooler.bounds.h > comps.gpu.pcbTop - 3) {
       issues.push({ level: 'warn', text: 'The tower cooler hangs over the GPU slot. Check clearance against the GPU backplate, or use a board with the x16 slot lower.' });
     }
     if (cooler.type !== 'aio') {
-      const cc = comps.cpuCooler;
+      const cc = comps.cpuCooler.bounds;
       const pushPull = comps.radiator && config.cpu.aio.pushPull;
       let worst = null;
       for (const s of slots) {
@@ -260,7 +280,7 @@
     return { slots, components, issues, shroudTop: shroudTop(config), grille: grilleOf(config) };
   }
 
-  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop };
+  AF.geometry = { layout, slotConfig, frontSlotCapacity, motherboardOf, boardTop, towerFans };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -298,8 +298,8 @@ function placementTests() {
       const placed = AF.geometry.layout(cfg);
       const comps = placed.components;
       const tooTall = placed.issues.some((i) => /cooler clearance/.test(i.text));
-      if (!tooTall && comps.cpuCooler.y < AF.data.PHYSICS.fanThickness) {
-        check(`${k.id} + ${cool.id}: cooler stays out of the top fan zone`, false, comps.cpuCooler.y);
+      if (!tooTall && comps.cpuCooler.bounds.y < AF.data.PHYSICS.fanThickness) {
+        check(`${k.id} + ${cool.id}: cooler stays out of the top fan zone`, false, comps.cpuCooler.bounds.y);
       }
     }
   }
@@ -315,7 +315,31 @@ function placementTests() {
   check('NH-D15 with top fans fits in a normal mid-tower', !AF.geometry.layout(ok).issues.some((i) => /hits the top/.test(i.text)));
   const atx = AF.geometry.layout(base()).components;
   check('ATX slot 2 sits 180 mm below the board top', Math.abs(atx.gpu.pcbTop - atx.mobo.y - 180.32) < 0.01);
-  check('GPU slot is below the cooler', atx.gpu.pcbTop > atx.cpuCooler.y + atx.cpuCooler.h);
+  check('GPU slot is below the cooler', atx.gpu.pcbTop > atx.cpuCooler.bounds.y + atx.cpuCooler.bounds.h);
+  const ft = AF.data.PHYSICS.fanThickness;
+  const overlap = (a, b) => a.x < b.x + b.w - 1e-6 && b.x < a.x + a.w - 1e-6;
+  for (const cool of towers) {
+    const cfg = base();
+    C.applyCooler(cfg, cool.id);
+    const spec = C.cpuCooler(cfg);
+    for (let n = 1; n <= spec.maxFanCount; n++) {
+      cfg.cpu.coolerFanCount = n;
+      const cc = AF.geometry.layout(cfg).components.cpuCooler;
+      const label = `${cool.id} with ${n} fan(s)`;
+      check(`${label}: fan count drawn`, cc.fans.length === n);
+      check(`${label}: no fan inside a fin stack`, cc.fans.every((f) => cc.towers.every((t) => !overlap(f, t))));
+      const front = cc.fans.find((f) => f.role === 'front');
+      check(`${label}: front fan clips onto the front face`, front && Math.abs(front.x - (cc.x + cc.w)) < 1e-6);
+      const middle = cc.fans.find((f) => f.role === 'middle');
+      if (middle) check(`${label}: middle fan centred between the towers`, Math.abs(middle.x + ft / 2 - (cc.x + cc.w / 2)) < 1e-6 && cc.towers.length === 2);
+      const rear = cc.fans.find((f) => f.role === 'rear');
+      if (rear) check(`${label}: rear fan clips onto the rear face`, Math.abs(rear.x + ft - cc.x) < 1e-6);
+      check(`${label}: fans stay inside the case`, cc.bounds.x > 0);
+      check(`${label}: fans centred on the fin stack`, cc.fans.every((f) => Math.abs(f.y + f.h / 2 - (cc.y + cc.h / 2)) < 1e-6));
+    }
+    if (cool.type === 'tower-dual') check(`${cool.id}: ships with front + middle fans`, (() => { const c = base(); C.applyCooler(c, cool.id); return AF.geometry.layout(c).components.cpuCooler.fans.map((f) => f.role).join() === 'front,middle'; })());
+    if (cool.id === 'nh-u12a' || cool.id === 'freezer36') check(`${cool.id}: ships in push-pull`, (() => { const c = base(); C.applyCooler(c, cool.id); return AF.geometry.layout(c).components.cpuCooler.fans.map((f) => f.role).join() === 'front,rear'; })());
+  }
 }
 
 fanCurveTests();

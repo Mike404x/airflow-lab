@@ -355,25 +355,32 @@
         ctx.lineWidth = cpuSel ? 2 : 1;
         ctx.strokeRect(this.X(cc.x), this.Y(cc.y), this.S(cc.w), this.S(cc.h));
         if (cooler.type === 'tower') {
-          ctx.strokeStyle = 'rgba(200,210,225,0.25)';
+          ctx.strokeStyle = 'rgba(200,210,225,0.3)';
           ctx.lineWidth = 1;
           ctx.beginPath();
-          for (let y = cc.y + 4; y < cc.y + cc.h; y += 4) {
-            ctx.moveTo(this.X(cc.x + 1), this.Y(y));
-            ctx.lineTo(this.X(cc.x + cc.w - 1), this.Y(y));
+          for (const t of cc.towers) {
+            for (let y = cc.y + 4; y < cc.y + cc.h; y += 4) {
+              ctx.moveTo(this.X(t.x + 1), this.Y(y));
+              ctx.lineTo(this.X(t.x + t.w - 1), this.Y(y));
+            }
           }
           ctx.stroke();
-          const fans = Math.max(1, state.config.cpu.coolerFanCount || cooler.defaultFanCount);
-          const positions = [cc.x + cc.w];
-          if (fans >= 2) positions.push(cooler.depth > 80 ? cc.x + cc.w / 2 + 12 : cc.x);
-          if (fans >= 3) positions.push(cc.x);
-          ctx.fillStyle = 'rgba(120,200,255,0.55)';
-          for (const fx of positions) ctx.fillRect(this.X(fx - 12), this.Y(cc.y + cc.h / 2 - cooler.fanSize / 2), this.S(24), this.S(cooler.fanSize));
+          for (const f of cc.fans) {
+            ctx.fillStyle = 'rgba(120,200,255,0.5)';
+            ctx.fillRect(this.X(f.x), this.Y(f.y), this.S(f.w), this.S(f.h));
+            ctx.strokeStyle = 'rgba(160,220,255,0.9)';
+            ctx.strokeRect(this.X(f.x), this.Y(f.y), this.S(f.w), this.S(f.h));
+            ctx.beginPath();
+            ctx.moveTo(this.X(f.x + f.w / 2), this.Y(f.y + 4));
+            ctx.lineTo(this.X(f.x + f.w / 2), this.Y(f.y + f.h - 4));
+            ctx.stroke();
+          }
         } else {
           ctx.fillStyle = 'rgba(120,200,255,0.55)';
           ctx.fillRect(this.X(cc.x + 6), this.Y(cc.y + cc.h / 2 - 3), this.S(cc.w - 12), this.S(6));
         }
-        this.hitAreas.push({ id: 'cpu-cooler', kind: 'rect', x: cc.x - 14, y: cc.y, w: cc.w + 28, h: cc.h });
+        const b = cc.bounds;
+        this.hitAreas.push({ id: 'cpu-cooler', kind: 'rect', x: b.x, y: b.y, w: b.w, h: b.h });
       }
 
       if (comps.radiator) {
@@ -543,7 +550,7 @@
         ctx.fillText(text, x, y + 4);
       };
       const cc = comps.cpuCooler;
-      tag(this.X(comps.socket.x), this.Y(cc.y) - 14, `CPU ${th.cpu.temp.toFixed(0)}°C · ${th.cpu.power.toFixed(0)} W`, th.cpu.throttled);
+      tag(this.X(comps.socket.x), this.Y(cc.bounds ? cc.bounds.y : cc.y) - 14, `CPU ${th.cpu.temp.toFixed(0)}°C · ${th.cpu.power.toFixed(0)} W`, th.cpu.throttled);
       const g = comps.gpu;
       tag(this.X(Math.min(g.length, state.config.case.depth) / 2), this.Y(g.sinkBottom) + 18, `GPU ${th.gpu.temp.toFixed(0)}°C · ${th.gpu.power.toFixed(0)} W`, th.gpu.throttled);
     }

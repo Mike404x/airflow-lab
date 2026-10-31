@@ -116,7 +116,7 @@
     },
     'tower-dual': {
       name: 'Dual-tower air cooler', type: 'tower', height: 165, fanSize: 140, defaultFanCount: 2, maxFanCount: 3,
-      depth: 110, finHeight: 135, sinkCoef: 13, sinkExp: 1.75, rBase: 0.04, rRef: 0.065, qRefCfm: 55,
+      depth: 130, finHeight: 145, sinkCoef: 13, sinkExp: 1.75, rBase: 0.04, rRef: 0.065, qRefCfm: 55,
       defaultFan: 'noctua-a14',
     },
     aio: {
