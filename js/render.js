@@ -56,7 +56,7 @@
     }
 
     resize() {
-      const rect = this.canvas.getBoundingClientRect();
+      const rect = this.canvas.parentElement.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
       const w = Math.max(200, Math.round(rect.width * dpr));
       const h = Math.max(200, Math.round(rect.height * dpr));
@@ -71,7 +71,7 @@
       const W = this.canvas.width / this.dpr;
       const H = this.canvas.height / this.dpr;
       const m = { l: 92, r: 92, t: 112, b: 84 };
-      const scale = Math.min((W - m.l - m.r) / config.case.depth, (H - m.t - m.b) / config.case.height);
+      const scale = Math.max(0.05, Math.min((W - m.l - m.r) / config.case.depth, (H - m.t - m.b) / config.case.height));
       const ox = m.l + ((W - m.l - m.r) - config.case.depth * scale) / 2;
       const oy = m.t + ((H - m.t - m.b) - config.case.height * scale) / 2;
       this.t = { scale, ox, oy, W, H };

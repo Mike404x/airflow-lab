@@ -468,6 +468,7 @@
     },
 
     draw() {
+      if (this.state.mode3d) return;
       this.renderer.draw(this.state, this.fmt.flow);
     },
 
