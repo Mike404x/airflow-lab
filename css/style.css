@@ -495,3 +495,17 @@ td.mode { font-size: 11px; }
 .pop-actions .btn svg { width: 13px; height: 13px; }
 
 .popover-wrap:has(.popover.open) [data-tip]::after { display: none; }
+
+.start-btn {
+  height: 30px; padding: 0 14px 0 11px; gap: 6px; font-size: 12.5px; font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, var(--accent-strong)); border: 0; color: white;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), 0 6px 18px rgba(59, 130, 246, 0.35);
+  animation: start-pulse 1.8s ease-out infinite;
+}
+.start-btn:hover { background: linear-gradient(135deg, #60a5fa, var(--accent)); }
+.start-btn svg { width: 14px; height: 14px; fill: currentColor; }
+@keyframes start-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), 0 6px 18px rgba(59, 130, 246, 0.35); }
+  70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0), 0 6px 18px rgba(59, 130, 246, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), 0 6px 18px rgba(59, 130, 246, 0.35); }
+}

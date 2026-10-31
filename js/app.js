@@ -64,7 +64,7 @@
       tab: 'inspect',
       view: 'temperature',
       particles: true,
-      running: true,
+      running: false,
       speed: 'max',
       displayThermal: null,
     },
@@ -147,13 +147,11 @@
         this.state.particles = !this.state.particles;
         particles.classList.toggle('active', this.state.particles);
       });
-      const playBtn = document.getElementById('btnPlay');
-      playBtn.addEventListener('click', () => {
+      document.getElementById('btnPlay').addEventListener('click', () => {
         this.state.running = !this.state.running;
-        playBtn.dataset.icon = this.state.running ? 'pause' : 'play';
-        playBtn.title = this.state.running ? 'Pause simulation' : 'Resume simulation';
-        AF.ui.hydrateIcons(playBtn.parentElement);
+        this.updatePlayButton();
       });
+      this.updatePlayButton();
       document.querySelectorAll('#rightTabs .tab').forEach((tab) => tab.addEventListener('click', () => this.showTab(tab.dataset.tab)));
       document.getElementById('btnAddFan').addEventListener('click', () => this.addCustomFan());
       document.getElementById('btn2d').addEventListener('click', () => this.setMode3d(false));
@@ -251,6 +249,15 @@
       AF.ui.buildEditor(this.dom.editor, this);
       this.renderPanels();
       this.showTab('inspect');
+    },
+
+    updatePlayButton() {
+      const btn = document.getElementById('btnPlay');
+      const running = this.state.running;
+      btn.className = running ? 'icon-btn ghost' : 'btn primary start-btn';
+      btn.dataset.tip = running ? 'Pause simulation' : 'Start the airflow simulation';
+      btn.replaceChildren(AF.ui.icon(running ? 'pause' : 'play'));
+      if (!running) btn.append(this.state.sim && this.state.sim.time > 0 ? 'Resume' : 'Start');
     },
 
     setMode3d(on) {
@@ -502,7 +509,7 @@
         if (statusKey !== this.lastStatus) {
           this.lastStatus = statusKey;
           const state = !st.running ? 'paused' : stats.ready ? 'ok' : '';
-          const label = !st.running ? 'Paused' : stats.ready ? 'Steady state' : `Converging ${Math.round(stats.progress * 100)}%`;
+          const label = !st.running ? (sim.time > 0 ? 'Paused' : 'Paused · press Start') : stats.ready ? 'Steady state' : `Converging ${Math.round(stats.progress * 100)}%`;
           this.dom.status.innerHTML = `<span class="live ${state}"></span>${label} · t = ${sim.time.toFixed(1)} s · ${sim.nx - 2}×${sim.ny - 2} grid`;
         }
       }
