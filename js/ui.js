@@ -109,7 +109,7 @@
     for (const item of list) {
       let g = groups.find((x) => x.label === item.group);
       if (!g) groups.push(g = { label: item.group, options: [] });
-      g.options.push({ value: item.id, label: item.name });
+      g.options.push({ value: item.id, label: item.approx ? `${item.name} ≈` : item.name });
     }
     return groups;
   }
@@ -196,7 +196,7 @@
       field('Case model', picker(groupOptions(C.CASES), c.model, (v) => {
         if (v === CUSTOM) editDims(() => {}); else update((cfg) => C.applyCase(cfg, v));
       }, 'Custom / generic case')),
-      caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed${caseEntry.stockApprox ? ' (bundled fan set is approximate, check your case)' : ''}`) : null,
+      caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed${caseEntry.approx ? ' · ≈ approximate specs, check your case' : caseEntry.stockApprox ? ' (bundled fan set is approximate, check your case)' : ''}`) : null,
       details('Dimensions & panels', !caseEntry,
         field('Name', text(c.name, (v) => update((cfg) => { cfg.case.name = v; }))),
         h('div', { class: 'grid3' },
@@ -296,7 +296,7 @@
       field('GPU', picker(groupOptions(C.GPUS), gpu.model, (v) => update((cfg) => {
         if (v === CUSTOM) cfg.gpu.model = 'custom'; else C.applyGpu(cfg, v);
       }), 'Custom GPU')),
-      summary(`${gpu.length} mm · ${gpu.slots} slot · ${gpu.power} W · ${gpuCooler.type === 'blower' ? 'blower' : `${gpu.fanCount || gpuCooler.fanCount} fans${gpuCooler.flowThrough ? ', flow-through' : ''}`}`),
+      summary(`${gpu.length} mm · ${gpu.slots} slot · ${gpu.power} W · ${gpuCooler.type === 'blower' ? 'blower' : `${gpu.fanCount || gpuCooler.fanCount} fans${gpuCooler.flowThrough ? ', flow-through' : ''}`}${gpuEntry && gpuEntry.approx ? ' · ≈ approximate dimensions' : ''}`),
       field('GPU fan speed', slider(gpu.fanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.gpu.fanSpeed = v; }))),
       details('Card details', !gpuEntry,
         h('div', { class: 'grid3' },
