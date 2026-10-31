@@ -4,9 +4,31 @@ Configurable PC case airflow simulator. Build a case, place fans, pick a CPU/GPU
 
 ## Run
 
-Open `index.html` in a browser (no build step, no server, no dependencies).
+- **Quickest:** open `index.html` in a browser (no build step, no dependencies).
+- **As a local website:** `npm start`, then open http://localhost:8080. Set `PORT=3000` to use another port.
+- **Tests:** `npm test`
 
-Tests: `node tests/run-tests.js`
+## Publish as a website (GitHub Pages)
+
+The site is fully static, so any static host works. The repo is set up for **GitHub Pages**. The workflow in `.github/workflows/deploy.yml` runs the test suite on every push, and if it passes, publishes `index.html`, `favicon.svg`, `css/`, `js/` and `vendor/`.
+
+1. Create a free account at https://github.com and a new **empty** repository (for example `airflow-lab`, with no README).
+2. In this folder:
+   ```
+   git branch -M main
+   git remote add origin https://github.com/<your-user>/airflow-lab.git
+   git push -u origin main
+   ```
+3. On GitHub, open the repository's **Settings → Pages** and set **Source** to **GitHub Actions**.
+4. Open the **Actions** tab. When "Test and deploy to GitHub Pages" turns green, the site is live at `https://<your-user>.github.io/airflow-lab/`.
+
+Every later `git push` redeploys automatically. A failing test blocks the deploy.
+
+**Alternatives:**
+- **Netlify:** drag this folder onto https://app.netlify.com/drop for an instant URL.
+- **Cloudflare Pages:** connect the GitHub repo, with no build command and `/` as the output directory.
+
+Builds are saved per visitor in their browser's local storage; nothing is sent to a server.
 
 ## 3D view
 

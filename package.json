@@ -1,0 +1,14 @@
+{
+  "name": "airflow-lab",
+  "version": "1.0.0",
+  "description": "PC case airflow and thermal simulator",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "test": "node tests/run-tests.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
