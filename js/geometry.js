@@ -201,32 +201,32 @@
     const radExtra = frontRad + (frontRad && config.cpu.aio.pushPull ? P.fanThickness : 0);
     const gpuSpace = c.maxGpu ? Math.min(c.maxGpu - radExtra, c.depth - frontDepth) : c.depth - frontDepth;
     if (config.gpu.length > gpuSpace) {
-      issues.push({ level: 'error', text: `GPU (${config.gpu.length} mm) does not fit: the case allows ${Math.round(gpuSpace)} mm${radExtra ? ' with the front radiator' : ''}.` });
+      issues.push({ level: 'error', text: `GPU too long: ${config.gpu.length} mm, the case fits ${Math.round(gpuSpace)} mm.`, fix: radExtra ? 'Move the radiator to the top or pick a shorter GPU.' : 'Pick a shorter GPU or a bigger case.' });
     }
     if (comps.gpu.sinkBottom > shroudTop(config)) {
-      issues.push({ level: 'error', text: 'GPU cooler collides with the PSU shroud. Reduce slot thickness or remove the shroud.' });
+      issues.push({ level: 'error', text: 'The GPU hits the PSU shroud.', fix: 'Pick a thinner GPU or a case without a shroud.' });
     }
     const cooler = AF.catalog.cpuCooler(config);
     const coolerClearance = c.maxCooler || c.width - 55;
     if (cooler.type !== 'aio' && cooler.height > coolerClearance) {
-      issues.push({ level: 'error', text: `CPU cooler (${cooler.height} mm tall) exceeds the case's ${c.maxCooler ? '' : '~'}${coolerClearance} mm cooler clearance.` });
+      issues.push({ level: 'error', text: `CPU cooler too tall: ${cooler.height} mm, the case fits ${coolerClearance} mm.`, fix: `Pick a cooler under ${coolerClearance} mm or an AIO.` });
     }
     const boardSocket = c.motherboard && c.motherboard.socket;
     if (boardSocket && config.cpu.socket && boardSocket !== config.cpu.socket) {
-      issues.push({ level: 'error', text: `Incompatible: the CPU uses ${config.cpu.socket} but the motherboard has an ${boardSocket} socket.` });
+      issues.push({ level: 'error', text: `CPU and motherboard socket don't match (${config.cpu.socket} vs ${boardSocket}).`, fix: `Pick a ${config.cpu.socket} motherboard or a ${boardSocket} CPU.` });
     }
     const m = comps.mobo;
     if (m.x + m.w > c.depth - (frontUsed ? P.fanThickness : 0)) {
-      issues.push({ level: 'error', text: `The ${m.w} mm wide motherboard does not fit: only ${Math.round(c.depth - m.x - (frontUsed ? P.fanThickness : 0))} mm of depth before the front fans.` });
+      issues.push({ level: 'error', text: 'The motherboard is too wide for this case.', fix: 'Pick a smaller board or a deeper case.' });
     }
     if (m.y + m.h > c.height) {
-      issues.push({ level: 'error', text: `The ${m.h} mm tall motherboard does not fit in a ${c.height} mm tall case.` });
+      issues.push({ level: 'error', text: 'The motherboard is too tall for this case.', fix: 'Pick a smaller board or a taller case.' });
     }
     if (m.y + m.h > shroudTop(config) + 20 && c.shroud && m.h > 250) {
-      issues.push({ level: 'info', text: 'The bottom of the motherboard sits behind the PSU shroud. Its lowest PCIe slots are unusable for cards.' });
+      issues.push({ level: 'info', text: 'The lowest motherboard slots are hidden behind the shroud.' });
     }
     if (cooler.type === 'tower' && comps.cpuCooler.bounds.y + comps.cpuCooler.bounds.h > comps.gpu.pcbTop - 3) {
-      issues.push({ level: 'warn', text: 'The tower cooler hangs over the GPU slot. Check clearance against the GPU backplate, or use a board with the x16 slot lower.' });
+      issues.push({ level: 'warn', text: 'The CPU cooler sits very close to the GPU.', fix: 'Check the clearance, or put the GPU in a lower slot.' });
     }
     if (cooler.type !== 'aio') {
       const cc = comps.cpuCooler.bounds;
@@ -240,23 +240,23 @@
         if (stack > 0 && overlapsX && cc.y < stack && (!worst || stack > worst.stack)) worst = { stack, rad: s.radiator };
       }
       if (worst) {
-        issues.push({ level: 'error', text: `The CPU cooler reaches ${Math.round(cc.y)} mm from the roof and hits the top ${worst.rad ? 'radiator' : 'fans'} (${worst.stack} mm deep). Move those fans back, use a lower cooler, or a case with more top clearance.` });
+        issues.push({ level: 'error', text: `The CPU cooler hits the top ${worst.rad ? 'radiator' : 'fans'}.`, fix: 'Move the top fans toward the front, use a lower cooler, or a case with more top clearance.' });
       } else if (cc.y < P.fanThickness + 3) {
-        issues.push({ level: 'warn', text: `The CPU cooler reaches ${Math.round(cc.y)} mm from the roof. Fans above it will not fit.` });
+        issues.push({ level: 'warn', text: 'The CPU cooler leaves no room for top fans.', fix: 'Use a lower cooler or keep the top fans away from it.' });
       }
     }
     if (comps.radiator) {
       const needed = config.cpu.aio.fans;
       if (comps.radiator.slots.length < needed) {
-        issues.push({ level: 'error', text: `The ${config.cpu.aio.panel} panel only has ${comps.radiator.slots.length} slot(s) for a ${needed}-fan radiator.` });
+        issues.push({ level: 'error', text: `The radiator doesn't fit on the ${config.cpu.aio.panel}.`, fix: 'Pick a smaller radiator or another location.' });
       }
       if (!comps.radiator.slots.every((s) => s.available)) {
-        issues.push({ level: 'error', text: 'The radiator is mounted on a panel that does not allow fans.' });
+        issues.push({ level: 'error', text: 'The radiator is on a panel without fan mounts.', fix: 'Choose another radiator location.' });
       }
       if (config.cpu.aio.panel === 'top') {
         const stack = comps.radiator.thickness + P.fanThickness * (config.cpu.aio.pushPull ? 2 : 1);
         if (stack > comps.mobo.y + 10) {
-          issues.push({ level: 'warn', text: `Top radiator stack is ${stack} mm thick and may hit the motherboard VRM heatsinks or RAM.` });
+          issues.push({ level: 'warn', text: `The top radiator (${stack} mm thick) may hit the RAM.`, fix: 'Use a slimmer radiator or mount it at the front.' });
         }
       }
     }
@@ -432,22 +432,22 @@
     const gpuBox = { x: 0, y: g.pcbTop, w: g.length, h: g.sinkBottom - g.pcbTop };
     for (const cf of fans) {
       const r = cf.rect;
-      if (rectsOverlap(r, gpuBox)) issues.push({ level: 'error', text: `${cf.label} overlaps the graphics card.` });
-      if (comps.cpuCooler.bounds && rectsOverlap(r, comps.cpuCooler.bounds)) issues.push({ level: 'error', text: `${cf.label} overlaps the CPU cooler.` });
+      if (rectsOverlap(r, gpuBox)) issues.push({ level: 'error', text: `${cf.label} overlaps the graphics card.`, fix: 'Pick another position for it.' });
+      if (comps.cpuCooler.bounds && rectsOverlap(r, comps.cpuCooler.bounds)) issues.push({ level: 'error', text: `${cf.label} overlaps the CPU cooler.`, fix: 'Pick another position for it.' });
       if (comps.shroud && rectsOverlap(r, { x: 0, y: comps.shroud.y, w: comps.shroud.x1, h: config.case.height - comps.shroud.y })) {
-        issues.push({ level: 'error', text: `${cf.label} sits inside the PSU shroud.` });
+        issues.push({ level: 'error', text: `${cf.label} sits inside the PSU shroud.`, fix: 'Pick another position for it.' });
       }
       for (const other of fans) {
-        if (other.index > cf.index && rectsOverlap(r, other.rect)) issues.push({ level: 'error', text: `${cf.label} overlaps ${other.label}.` });
+        if (other.index > cf.index && rectsOverlap(r, other.rect)) issues.push({ level: 'error', text: `${cf.label} overlaps ${other.label}.`, fix: 'Move one of them.' });
       }
       if (cf.mount.type === 'wall') {
         for (const s of slots) {
           if (s.panel !== cf.mount.panel || slotConfig(config, s.id).mode === 'empty') continue;
           const along = s.panel === 'rear' || s.panel === 'front' ? [s.cy, cf.y] : [s.cx, cf.x];
-          if (Math.abs(along[0] - along[1]) < (s.size + cf.size) / 2) issues.push({ level: 'error', text: `${cf.label} overlaps the fan in ${AF.data.PANELS[s.panel].name.toLowerCase()} slot ${s.index + 1}.` });
+          if (Math.abs(along[0] - along[1]) < (s.size + cf.size) / 2) issues.push({ level: 'error', text: `${cf.label} overlaps the ${AF.data.PANELS[s.panel].name.toLowerCase()} slot ${s.index + 1} fan.`, fix: 'Pick another position or a smaller size.' });
         }
         const type = AF.data.PANEL_TYPES[config.case.panels[cf.mount.panel].type];
-        if (!type.allowsFans || type.zeta === 0) issues.push({ level: 'info', text: `${cf.label} is on a sealed ${cf.mount.panel} panel. It is modelled as a perforated cut-out or bracket.` });
+        if (!type.allowsFans || type.zeta === 0) issues.push({ level: 'info', text: `${cf.label} needs a cut-out or bracket in the ${cf.mount.panel} panel.` });
       }
     }
     return issues;

@@ -817,7 +817,10 @@
         h('div', { class: 'insight-count warn' }, h('b', {}, warns), h('span', {}, 'warnings')),
         h('div', { class: 'insight-count good' }, h('b', {}, count('good') + count('info')), h('span', {}, 'notes'))),
       h('ul', { class: 'notes' }, notes.map((n) => h('li', { class: `note ${n.level}` },
-        h('span', { class: 'note-icon' }, icon(NOTE_ICONS[n.level])), h('span', {}, n.text)))));
+        h('span', { class: 'note-icon' }, icon(NOTE_ICONS[n.level])),
+        h('div', { class: 'note-body' },
+          h('div', { class: 'note-text' }, n.text),
+          n.fix ? h('div', { class: 'note-fix' }, h('span', { class: 'note-fix-label' }, 'Fix'), n.fix) : null)))));
   }
 
   AF.ui = { h, icon, hydrateIcons, createFormatter, buildConfigPanel, buildEditor, updateEditorDynamic, renderResults, renderKpis, renderInsights };

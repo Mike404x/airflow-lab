@@ -427,68 +427,68 @@
   function analyze(config, layout, air, thermal, simStats) {
     const P = PHYS();
     const notes = [];
-    const add = (level, text) => notes.push({ level, text });
+    const add = (level, text, fix) => notes.push({ level, text, fix });
     for (const issue of layout.issues) notes.push(issue);
     const cfm = (q) => (q / CFM()).toFixed(1);
 
     if (air.pressure > P.neutralPressurePa) {
-      add('good', `Positive pressure (+${air.pressure.toFixed(2)} Pa): ${cfm(air.passiveOut)} CFM leaves through gaps and vents, so dust only enters through the intakes.`);
+      add('good', `Positive pressure (+${air.pressure.toFixed(2)} Pa). Dust only gets in through the filtered intakes.`);
     } else if (air.pressure < -P.neutralPressurePa) {
       const unfiltered = air.elements.filter((e) => !e.filtered && e.inflow > 0 && e.kind === 'vent').reduce((a, e) => a + e.inflow, 0);
-      add('warn', `Negative pressure (${air.pressure.toFixed(2)} Pa): ${cfm(unfiltered)} CFM is pulled in through unfiltered gaps and vents. Expect dust buildup.`);
+      add('warn', `Negative pressure: ${cfm(unfiltered)} CFM of dusty air is sucked in through gaps.`, 'Add an intake fan or speed up the intakes until they move more air than the exhausts.');
     } else {
-      add('info', 'Pressure is close to neutral. Gaps will let in a little air in some places and leak it out in others.');
+      add('info', 'Pressure is about neutral.', 'Run the intakes slightly faster than the exhausts for a little positive pressure.');
     }
 
     for (const el of air.elements) {
       if (el.kind === 'vent') continue;
       if (el.stalled) {
-        add('error', `${el.label}: the case pressure overpowers this fan and air flows backward through it (${cfm(el.q)} CFM).`);
+        add('error', `${el.label} is pushed backwards by the other fans.`, 'Speed this fan up, or slow down the fans working against it.');
       } else if (el.free > 0 && el.q / el.free < 0.5) {
-        add('warn', `${el.label}: only ${Math.round(el.q / el.free * 100)}% of its free-air flow. The panel, filter or radiator is very restrictive for this fan. A static-pressure fan or higher speed would help.`);
+        add('warn', `${el.label} only reaches ${Math.round(el.q / el.free * 100)}% of its rated airflow.`, 'Use a high static pressure fan, raise its speed, or use a more open panel or filter.');
       }
-      if (el.kind === 'fan' && el.dir > 0 && !el.filtered) add('info', `${el.label} is an intake without a dust filter.`);
+      if (el.kind === 'fan' && el.dir > 0 && !el.filtered) add('info', `${el.label} has no dust filter.`, 'Add a dust filter in this fan\'s settings.');
     }
 
     const intakes = air.elements.filter((e) => e.kind === 'fan' && e.dir > 0);
     const exhausts = air.elements.filter((e) => e.kind !== 'vent' && e.dir < 0);
-    if (!intakes.length) add('warn', 'No intake fans: all fresh air enters passively through vents and gaps.');
-    if (!exhausts.length) add('info', 'No exhaust fans: hot air leaves only through vents and gaps.');
+    if (!intakes.length) add('warn', 'No intake fans.', 'Add intake fans at the front or bottom.');
+    if (!exhausts.length) add('info', 'No exhaust fans.', 'Add an exhaust fan at the rear or top.');
 
     for (const el of exhausts) {
       if (el.slot && el.slot.panel === 'top' && nearFrontIntake(layout, config, el.slot)) {
-        add('warn', `${el.label} is an exhaust right behind the top front intake. It will pull out fresh air before it reaches the components.`);
+        add('warn', `${el.label} sucks out fresh air right after it comes in.`, 'Turn this fan off or use the top fans closer to the rear.');
       }
     }
     const frontExhaust = air.elements.some((e) => e.kind === 'fan' && e.dir < 0 && e.slot && e.slot.panel === 'front');
     const rearIntake = air.elements.some((e) => e.kind === 'fan' && e.dir > 0 && e.slot && e.slot.panel === 'rear');
-    if (frontExhaust && rearIntake) add('warn', 'Rear intake with front exhaust works against the CPU cooler direction and the rising heat. Reverse it.');
+    if (frontExhaust && rearIntake) add('warn', 'Air flows from back to front, against the CPU cooler.', 'Make the front fans intakes and the rear fan an exhaust.');
     const topIntake = air.elements.some((e) => e.kind === 'fan' && e.dir > 0 && e.slot && e.slot.panel === 'top');
-    if (topIntake) add('info', 'Top intake works against natural convection. Top fans usually work better as exhaust.');
+    if (topIntake) add('info', 'A top fan blows in, against rising heat.', 'Set the top fans to exhaust.');
 
     const cooler = AF.catalog.cpuCooler(config);
     if (cooler.type === 'aio') {
       const sections = thermal.sections;
-      if (sections.some((s) => s.element.kind === 'vent')) add('warn', 'Some radiator sections have no fans.');
-      if (sections.some((s) => s.intake)) add('info', `The radiator is an intake: the CPU runs cooler, but ${Math.round(thermal.cpuCaseHeat)} W of CPU heat is blown into the case and warms the GPU.`);
-      else if (sections.length) add('info', 'The radiator is an exhaust: it is cooled by warm case air, but no CPU heat stays in the case.');
+      if (sections.some((s) => s.element.kind === 'vent')) add('warn', 'The radiator is missing fans.', 'Use "Put fans on empty radiator slots" in the CPU cooler panel.');
+      if (sections.some((s) => s.intake)) add('info', `The radiator blows ${Math.round(thermal.cpuCaseHeat)} W of CPU heat into the case.`, 'Good for the CPU. If the GPU runs hot, mount the radiator as a top or rear exhaust.');
+      else if (sections.length) add('good', 'The radiator sends CPU heat straight out of the case.');
     }
 
-    if (air.airChangesPerMinute < 30) add('warn', `Low throughput: ${air.airChangesPerMinute.toFixed(0)} case air changes/min. The case air heats up by ${thermal.caseRise.toFixed(1)} °C.`);
-    if (thermal.cpu.throttled) add('error', `CPU reaches Tjmax (${config.cpu.tjmax} °C) and throttles from ${config.cpu.power} W to ${thermal.cpu.power.toFixed(0)} W.`);
-    if (thermal.gpu.throttled) add('error', `GPU reaches its ${config.gpu.tmax} °C limit and throttles from ${config.gpu.power} W to ${thermal.gpu.power.toFixed(0)} W.`);
-    if (air.coolers.gpu && air.coolers.gpu.q < 0.25 * air.coolers.gpu.free) add('warn', 'GPU fans are heavily restricted.');
+    if (air.airChangesPerMinute < 30) add('warn', `Low airflow: the case air is only replaced ${air.airChangesPerMinute.toFixed(0)} times a minute.`, 'Add fans or raise the fan speeds. Aim for 30 or more.');
+    if (thermal.cpu.throttled) add('error', `CPU overheats and slows down (${config.cpu.power} W → ${thermal.cpu.power.toFixed(0)} W).`, 'Use a stronger cooler, raise the cooler fan speed, or add an exhaust near the CPU.');
+    if (thermal.gpu.throttled) add('error', `GPU overheats and slows down (${config.gpu.power} W → ${thermal.gpu.power.toFixed(0)} W).`, 'Raise the GPU fan speed, add front or bottom intake, or add a rear PCIe exhaust fan.');
+    if (air.coolers.gpu && air.coolers.gpu.q < 0.25 * air.coolers.gpu.free) add('warn', 'The GPU fans are choked.', 'Raise the GPU fan speed or give the card more room below it.');
 
     for (const el of air.internal || []) {
       const cf = el.custom;
-      if (cf.mount.anchor === 'gpu' && cf.dir === 'up') add('info', `${el.label} pushes ${cfm(el.q)} CFM of case air straight into the GPU fans.`);
-      if (cf.mount.anchor === 'cooler') add('info', `${el.label} pushes ${cfm(el.q)} CFM into the CPU cooler intake.`);
+      if (cf.mount.anchor === 'gpu' && cf.dir === 'up') add('info', `${el.label} pushes ${cfm(el.q)} CFM into the GPU.`);
+      if (cf.mount.anchor === 'cooler') add('info', `${el.label} pushes ${cfm(el.q)} CFM into the CPU cooler.`);
     }
 
     if (simStats && simStats.ready) {
-      if (simStats.stagnant > 0.35) add('warn', `CFD: ${Math.round(simStats.stagnant * 100)}% of the case cross-section has almost no air movement (dead zones).`);
-      if (simStats.gpuRecirculation > 6) add('warn', `CFD: the GPU takes in air ${simStats.gpuRecirculation.toFixed(1)} °C above room temperature. Warm air is recirculating into it. Add or strengthen intake below or in front of the GPU.`);
-      if (simStats.cpuRecirculation > 8) add('warn', `CFD: the CPU cooler takes in air ${simStats.cpuRecirculation.toFixed(1)} °C above room temperature, mostly GPU exhaust. More exhaust near the CPU (rear or top) would help.`);
+      if (simStats.stagnant > 0.35) add('warn', `${Math.round(simStats.stagnant * 100)}% of the case has almost no airflow.`, 'Add an intake aimed at the dead zones (dark areas in the Air speed view).');
+      if (simStats.gpuRecirculation > 6) add('warn', `The GPU breathes air ${simStats.gpuRecirculation.toFixed(1)} °C warmer than the room.`, 'Add intake in front of or below the GPU, or a rear PCIe exhaust fan.');
+      if (simStats.cpuRecirculation > 8) add('warn', `The CPU cooler breathes air ${simStats.cpuRecirculation.toFixed(1)} °C warmer than the room.`, 'Add a rear or top exhaust near the CPU.');
     }
     return notes;
   }

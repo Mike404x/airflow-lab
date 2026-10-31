@@ -198,7 +198,7 @@ function motherboardTests() {
   const eatx = clone(base);
   eatx.case.motherboard = AF.data.motherboardConfig('eatx');
   eatx.case.depth = 330;
-  check('E-ATX in a shallow case is flagged', AF.geometry.layout(eatx).issues.some((i) => i.level === 'error' && /motherboard/.test(i.text)));
+  check('E-ATX in a shallow case is flagged', AF.geometry.layout(eatx).issues.some((i) => i.level === 'error' && /motherboard/i.test(i.text)));
   const legacy = clone(base);
   delete legacy.case.motherboard;
   legacy.case.formFactor = 'itx';
@@ -262,18 +262,18 @@ function catalogTests() {
   const mismatch = base();
   C.applyCpu(mismatch, 'i9-14900k');
   C.applyBoard(mismatch, 'x870e-hero');
-  check('CPU/board socket mismatch is flagged', AF.geometry.layout(mismatch).issues.some((i) => /Incompatible/.test(i.text)));
+  check('CPU/board socket mismatch is flagged', AF.geometry.layout(mismatch).issues.some((i) => /socket don't match/.test(i.text)));
   const longGpu = base();
   C.applyCase(longGpu, 'corsair-4000d');
   C.applyGpu(longGpu, 'rtx5090-astral');
-  check('358 mm GPU flagged in 4000D (360 mm max with no front radiator is ok)', !AF.geometry.layout(longGpu).issues.some((i) => /GPU \(358/.test(i.text)));
+  check('358 mm GPU flagged in 4000D (360 mm max with no front radiator is ok)', !AF.geometry.layout(longGpu).issues.some((i) => /GPU too long: 358/.test(i.text)));
   C.applyCooler(longGpu, 'lf3-360');
   longGpu.cpu.aio.panel = 'front';
-  check('front 38 mm radiator + 358 mm GPU flagged in 4000D', AF.geometry.layout(longGpu).issues.some((i) => /GPU \(358/.test(i.text)));
+  check('front 38 mm radiator + 358 mm GPU flagged in 4000D', AF.geometry.layout(longGpu).issues.some((i) => /GPU too long: 358/.test(i.text)));
   const tall = base();
   C.applyCase(tall, 'nr200p');
   C.applyCooler(tall, 'nh-d15');
-  check('NH-D15 too tall for NR200P', AF.geometry.layout(tall).issues.some((i) => /cooler clearance/.test(i.text)));
+  check('NH-D15 too tall for NR200P', AF.geometry.layout(tall).issues.some((i) => /cooler too tall/i.test(i.text)));
   const gaming = base();
   gaming.workload = 'gaming';
   C.applyCpu(gaming, 'r7-9800x3d');
@@ -297,7 +297,7 @@ function placementTests() {
       C.applyCooler(cfg, cool.id);
       const placed = AF.geometry.layout(cfg);
       const comps = placed.components;
-      const tooTall = placed.issues.some((i) => /cooler clearance/.test(i.text));
+      const tooTall = placed.issues.some((i) => /cooler too tall/i.test(i.text));
       if (!tooTall && comps.cpuCooler.bounds.y < AF.data.PHYSICS.fanThickness) {
         check(`${k.id} + ${cool.id}: cooler stays out of the top fan zone`, false, comps.cpuCooler.bounds.y);
       }

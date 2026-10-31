@@ -230,24 +230,24 @@ details.sub[open] { padding-bottom: 4px; }
 
 .stage { display: flex; flex-direction: column; min-width: 0; padding: 14px; gap: 12px; }
 
-.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; flex: none; }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; flex: none; }
 .kpi {
   position: relative; overflow: hidden;
   background: linear-gradient(180deg, var(--surface-2), var(--surface));
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 11px 13px 12px;
+  border-radius: 10px;
+  padding: 7px 11px 8px;
   cursor: default;
 }
 .kpi.clickable { cursor: pointer; }
 .kpi.clickable:hover { border-color: var(--border-strong); }
 .kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--kpi-color, transparent); opacity: 0.9; }
-.kpi-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-.kpi-label svg { width: 14px; height: 14px; }
-.kpi-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.kpi-value small { font-size: 13px; font-weight: 600; color: var(--text-2); margin-left: 2px; }
-.kpi-sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi-bar { height: 4px; border-radius: 4px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
+.kpi-label { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.kpi-label svg { width: 12px; height: 12px; }
+.kpi-value { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2; }
+.kpi-value small { font-size: 11px; font-weight: 600; color: var(--text-2); margin-left: 2px; }
+.kpi-sub { color: var(--muted); font-size: 10.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-bar { height: 3px; border-radius: 3px; background: var(--surface-3); margin-top: 5px; overflow: hidden; }
 .kpi-bar > div { height: 100%; border-radius: 4px; background: var(--kpi-color, var(--accent)); transition: width 0.4s ease; }
 .kpi.good { --kpi-color: var(--good); }
 .kpi.warn { --kpi-color: var(--warn); }
@@ -425,7 +425,7 @@ td.mode { font-size: 11px; }
 
 @media (max-width: 1500px) {
   .layout { grid-template-columns: 64px 290px minmax(0, 1fr) 340px; }
-  .kpi-value { font-size: 19px; }
+  .kpi-value { font-size: 15px; }
 }
 @media (max-width: 1280px) {
   .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -445,3 +445,10 @@ td.mode { font-size: 11px; }
 
 .size-seg { width: 100%; background: var(--surface-2); border: 1px solid var(--border); }
 .size-seg .seg { flex: 1; padding: 0 6px; }
+
+.note-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.note-text { color: var(--text); font-weight: 500; }
+.note-fix { display: flex; gap: 8px; align-items: baseline; color: var(--text-2); font-size: 12px; line-height: 1.45; }
+.note-fix-label { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
+.note.error .note-fix-label { background: rgba(248, 113, 113, 0.14); color: var(--bad); }
+.note.warn .note-fix-label { background: rgba(251, 191, 36, 0.12); color: var(--warn); }
