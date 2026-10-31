@@ -467,12 +467,11 @@
     config.case.motherboard = board;
   }
 
-  function defaultRadiatorPanel(config, size) {
+  function defaultRadiatorPanel(config, size, fans) {
     const support = config.case.support;
-    const fits = (panel) => !support || !support[panel] || (support[panel][size] || 0) >= 1;
-    if (config.case.panels.top.type !== 'solid' && fits('top')) return 'top';
-    if (config.case.panels.front.type !== 'solid' && fits('front')) return 'front';
-    return 'top';
+    const need = fans || 1;
+    const fits = (panel) => config.case.panels[panel].type !== 'solid' && (!support || (support[panel] && (support[panel][size] || 0) >= need));
+    return ['top', 'front', 'bottom'].find(fits) || 'top';
   }
 
   function applyCooler(config, id) {
@@ -485,7 +484,11 @@
       config.cpu.coolerFanCount = e.fanCount || D.CPU_COOLERS[e.type].defaultFanCount;
     }
     if (e.type === 'aio' && e.aio) {
-      const panel = config.cpu.aio && ['top', 'front', 'bottom'].includes(config.cpu.aio.panel) ? config.cpu.aio.panel : defaultRadiatorPanel(config, e.aio.size);
+      const current = config.cpu.aio && config.cpu.aio.panel;
+      const sup = config.case.support;
+      const currentFits = ['top', 'front', 'bottom'].includes(current) && config.case.panels[current].type !== 'solid'
+        && (!sup || (sup[current] && (sup[current][e.aio.size] || 0) >= e.aio.fans));
+      const panel = currentFits ? current : defaultRadiatorPanel(config, e.aio.size, e.aio.fans);
       config.cpu.aio = { panel, fans: e.aio.fans, thickness: e.aio.thickness, pushPull: false };
       config.case.panels[panel].fanSize = e.aio.size;
       const mode = panel === 'front' || panel === 'bottom' ? 'intake' : 'exhaust';
@@ -513,7 +516,7 @@
     for (const [slotId, mode, fan] of e.stock) config.slots[slotId] = { mode, fan, speed: 0.7, filter: mode === 'intake' ? 'nylon' : 'none' };
     if (config.cpu.cooler === 'aio') {
       const size = c.panels[config.cpu.aio.panel] ? c.panels[config.cpu.aio.panel].fanSize : 120;
-      config.cpu.aio.panel = defaultRadiatorPanel(config, size);
+      config.cpu.aio.panel = defaultRadiatorPanel(config, size, config.cpu.aio.fans);
     }
   }
 
@@ -540,7 +543,7 @@
   const BRANDS = [
     'Cooler Master', 'be quiet!', 'Lian Li', 'Noctua', 'Arctic', 'Corsair', 'Thermalright', 'DeepCool', 'Fractal', 'Phanteks',
     'Montech', 'Scythe', 'NZXT', 'SilverStone', 'Thermaltake', 'Antec', 'HYTE', 'ASUS', 'Gigabyte', 'MSI', 'Zotac', 'EVGA',
-    'ASRock', 'PowerColor', 'Sapphire', 'XFX', 'PNY', 'AMD', 'Intel', 'NVIDIA', 'Jonsbo', 'Generic',
+    'ASRock', 'PowerColor', 'Sapphire', 'XFX', 'PNY', 'AMD', 'Intel', 'NVIDIA', 'Jonsbo', 'Zalman', 'ID-COOLING', 'Gelid', 'Generic',
   ];
   const BRAND_ALIASES = [[/^EK-/, 'EK'], [/^RTX /, 'NVIDIA'], [/^RX /, 'AMD'], [/^Arc /, 'Intel'], [/^Ryzen /, 'AMD'], [/^Core /, 'Intel']];
 
@@ -555,7 +558,7 @@
   const CATEGORY_ORDER = {
     cpu: ['AMD Ryzen 9000 · AM5', 'AMD Ryzen 7000 · AM5', 'AMD Ryzen 5000 · AM4', 'Intel Core Ultra 200S · LGA1851', 'Intel Core 12th–14th gen · LGA1700'],
     gpu: ['NVIDIA GeForce RTX 50 series', 'NVIDIA GeForce RTX 40 series', 'NVIDIA GeForce RTX 30 series', 'AMD Radeon RX 9000 series', 'AMD Radeon RX 7000 series', 'AMD Radeon RX 6000 series', 'Intel Arc', 'Workstation (blower)'],
-    cooler: ['Generic', 'Dual-tower air', 'Single-tower air', 'AIO liquid 360 mm', 'AIO liquid 280 mm', 'AIO liquid 240 mm', 'Low-profile air', 'Stock coolers'],
+    cooler: ['Generic', 'Dual-tower air', 'Single-tower air', 'AIO liquid 420 mm', 'AIO liquid 360 mm', 'AIO liquid 280 mm', 'AIO liquid 240 mm', 'AIO liquid 120 mm', 'Low-profile air', 'Stock coolers'],
     case: ['Mid tower', 'Full tower', 'Dual chamber', 'Micro-ATX', 'Mini-ITX'],
     board: ['AMD AM5', 'AMD AM4', 'Intel LGA1851', 'Intel LGA1700'],
   };

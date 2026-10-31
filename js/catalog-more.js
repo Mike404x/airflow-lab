@@ -330,5 +330,7 @@
     list.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group) || a.name.localeCompare(b.name));
   }
 
+  C.builders = { fan, gpu, board, kase, MID, MID2, DUAL, DUAL_PANELS };
+
   if (typeof module === 'object' && module.exports) module.exports = AF;
 })(typeof window !== 'undefined' ? window : globalThis);
