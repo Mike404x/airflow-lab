@@ -1,5 +1,6 @@
 const path = require('path');
 const AF = require(path.join(__dirname, '..', 'js', 'data.js'));
+require(path.join(__dirname, '..', 'js', 'catalog.js'));
 require(path.join(__dirname, '..', 'js', 'geometry.js'));
 require(path.join(__dirname, '..', 'js', 'physics.js'));
 require(path.join(__dirname, '..', 'js', 'cfd.js'));
@@ -212,7 +213,79 @@ function motherboardTests() {
   }
 }
 
+function catalogTests() {
+  const C = AF.catalog;
+  const fanIds = new Set(AF.data.FANS.map((f) => f.id));
+  for (const k of C.CASES) for (const [, , fan] of k.stock) check(`case ${k.id}: bundled fan ${fan} exists`, fanIds.has(fan));
+  for (const k of C.COOLERS) if (k.fan) {
+    const fan = AF.data.FANS.find((f) => f.id === k.fan);
+    check(`cooler ${k.id}: fan exists`, !!fan);
+    const size = k.aio ? k.aio.size : k.fanSize;
+    if (fan && size) check(`cooler ${k.id}: fan size matches`, fan.size === size, `${fan.size} vs ${size}`);
+  }
+  const ids = (list) => new Set(list.map((x) => x.id)).size === list.length;
+  check('unique ids', [C.CPUS, C.GPUS, C.COOLERS, C.BOARDS, C.CASES, AF.data.FANS].every(ids));
+
+  const run = (config, label) => {
+    try {
+      const { layout, air, thermal } = solve(config);
+      const ok = Number.isFinite(air.pressure) && Number.isFinite(thermal.cpu.temp) && Number.isFinite(thermal.gpu.temp);
+      check(`${label}: solves`, ok);
+      return { layout, air, thermal };
+    } catch (err) {
+      check(`${label}: no exception`, false, err.stack);
+      return null;
+    }
+  };
+  const base = () => clone(AF.data.PRESETS[0].config);
+  for (const k of C.CASES) {
+    const cfg = base();
+    C.applyCase(cfg, k.id);
+    const r = run(cfg, `case ${k.id}`);
+    if (!r) continue;
+    const installed = k.stock.filter(([id]) => r.layout.slots.some((s) => s.id === id && s.available)).length;
+    check(`case ${k.id}: all bundled fans land in slots`, installed === k.stock.length, `${installed}/${k.stock.length}`);
+    const sim = new AF.CaseSim(cfg, r.layout, r.air, r.thermal, null);
+    sim.advance(60);
+    check(`case ${k.id}: CFD finite`, sim.T.every(Number.isFinite));
+  }
+  for (const k of C.COOLERS) { const cfg = base(); C.applyCooler(cfg, k.id); run(cfg, `cooler ${k.id}`); }
+  for (const k of C.GPUS) { const cfg = base(); C.applyGpu(cfg, k.id); run(cfg, `gpu ${k.id}`); }
+  for (const k of C.CPUS) { const cfg = base(); C.applyCpu(cfg, k.id); run(cfg, `cpu ${k.id}`); }
+  for (const k of C.BOARDS) { const cfg = base(); C.applyBoard(cfg, k.id); run(cfg, `board ${k.id}`); }
+
+  const d4000 = base();
+  C.applyCase(d4000, 'corsair-4000d');
+  d4000.case.panels.front.fanSize = 140;
+  check('4000D supports only 2 × 140 mm in front', AF.geometry.layout(d4000).slots.filter((s) => s.panel === 'front').length === 2);
+  const mismatch = base();
+  C.applyCpu(mismatch, 'i9-14900k');
+  C.applyBoard(mismatch, 'x870e-hero');
+  check('CPU/board socket mismatch is flagged', AF.geometry.layout(mismatch).issues.some((i) => /Incompatible/.test(i.text)));
+  const longGpu = base();
+  C.applyCase(longGpu, 'corsair-4000d');
+  C.applyGpu(longGpu, 'rtx5090-astral');
+  check('358 mm GPU flagged in 4000D (360 mm max with no front radiator is ok)', !AF.geometry.layout(longGpu).issues.some((i) => /GPU \(358/.test(i.text)));
+  C.applyCooler(longGpu, 'lf3-360');
+  longGpu.cpu.aio.panel = 'front';
+  check('front 38 mm radiator + 358 mm GPU flagged in 4000D', AF.geometry.layout(longGpu).issues.some((i) => /GPU \(358/.test(i.text)));
+  const tall = base();
+  C.applyCase(tall, 'nr200p');
+  C.applyCooler(tall, 'nh-d15');
+  check('NH-D15 too tall for NR200P', AF.geometry.layout(tall).issues.some((i) => /cooler clearance/.test(i.text)));
+  const gaming = base();
+  gaming.workload = 'gaming';
+  C.applyCpu(gaming, 'r7-9800x3d');
+  check('gaming workload uses gaming power', gaming.cpu.power === 70);
+  const better = base();
+  C.applyCooler(better, 'nh-d15');
+  const worse = base();
+  C.applyCooler(worse, 'wraith-stealth');
+  check('NH-D15 cools better than Wraith Stealth', solve(better).thermal.cpu.temp < solve(worse).thermal.cpu.temp);
+}
+
 fanCurveTests();
+catalogTests();
 motherboardTests();
 edgeCaseTests();
 balanceTests();

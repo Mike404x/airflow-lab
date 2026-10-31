@@ -276,7 +276,7 @@
       ctx.stroke();
       ctx.fillStyle = '#245c3a';
       ctx.fillRect(this.X(0), this.Y(g.pcbTop), this.S(g.pcbLength), this.S(g.pcbBottom - g.pcbTop));
-      const gpuCooler = AF.data.GPU_COOLERS[config.gpu.cooler];
+      const gpuCooler = AF.catalog.gpuCooler(config);
       ctx.fillStyle = 'rgba(120,200,255,0.55)';
       if (gpuCooler.type === 'blower') {
         ctx.beginPath();
@@ -295,7 +295,7 @@
       this.hitAreas.push({ id: 'gpu-cooler', kind: 'rect', x: 0, y: g.pcbTop, w: g.length, h: g.sinkBottom - g.pcbTop });
 
       const cc = comps.cpuCooler;
-      const cooler = AF.data.CPU_COOLERS[config.cpu.cooler];
+      const cooler = AF.catalog.cpuCooler(config);
       const cpuSel = state.selection === 'cpu-cooler';
       if (cooler.type === 'aio') {
         const s = comps.socket;

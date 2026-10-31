@@ -136,7 +136,7 @@
     }
 
     const gpuSlots = Math.ceil(config.gpu.slots);
-    const gpuCooler = data().GPU_COOLERS[config.gpu.cooler];
+    const gpuCooler = AF.catalog.gpuCooler(config);
     let pcieArea = 0;
     if (config.case.pcieVented) pcieArea += Math.max(0, P.pcieSlotCount - gpuSlots) * P.pcieSlotOpenAreaMm2;
     if (gpuCooler.type === 'open') pcieArea += gpuSlots * P.gpuBracketOpenAreaMm2 * 0.5;
@@ -180,7 +180,7 @@
   }
 
   function cpuCoolerAssembly(config, rho) {
-    const cooler = data().CPU_COOLERS[config.cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(config);
     if (cooler.type === 'aio') return null;
     let fanSpec;
     let count;
@@ -206,7 +206,7 @@
   }
 
   function gpuCoolerAssembly(config, rho) {
-    const cooler = data().GPU_COOLERS[config.gpu.cooler];
+    const cooler = AF.catalog.gpuCooler(config);
     if (cooler.type !== 'open') return null;
     const fanSpec = Object.assign({ name: 'GPU fan' }, cooler.fan, config.gpu.fanSpec || {});
     const fan = makeFan(fanSpec, rho);
@@ -287,7 +287,7 @@
   function radiatorSections(config, air) {
     const P = PHYS();
     const aio = config.cpu.aio;
-    const cooler = data().CPU_COOLERS.aio;
+    const cooler = AF.catalog.cpuCooler(config);
     const thicknessFactor = Math.pow(P.radiatorReferenceThickness / aio.thickness, P.radiatorThicknessThermalExponent);
     return air.elements.filter((e) => e.radiator).map((e) => {
       const size = e.slot.size >= 140 ? 140 : 120;
@@ -308,9 +308,9 @@
     const rhoCp = air.rho * P.airCp;
     const through = Math.max(air.throughFlow, 1e-5);
     const cpu = config.cpu;
-    const cooler = data().CPU_COOLERS[cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(config);
     const gpu = config.gpu;
-    const gpuCooler = data().GPU_COOLERS[gpu.cooler];
+    const gpuCooler = AF.catalog.gpuCooler(config);
     const sim = inlets || {};
 
     const gpuFlow = gpuCooler.type === 'blower' ? Math.max(0, air.blower ? air.blower.q : 0) : (air.coolers.gpu ? air.coolers.gpu.total : 0);
@@ -424,7 +424,7 @@
     const topIntake = air.elements.some((e) => e.kind === 'fan' && e.dir > 0 && e.slot && e.slot.panel === 'top');
     if (topIntake) add('info', 'Top intake works against natural convection. Top fans usually work better as exhaust.');
 
-    const cooler = data().CPU_COOLERS[config.cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(config);
     if (cooler.type === 'aio') {
       const sections = thermal.sections;
       if (sections.some((s) => s.element.kind === 'vent')) add('warn', 'Some radiator sections have no fans.');

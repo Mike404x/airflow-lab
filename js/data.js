@@ -97,16 +97,6 @@
   const LEGACY_FORM_FACTORS = { atx: 'atx-slot2', matx: 'matx', itx: 'itx' };
 
 
-  const CPUS = [
-    { id: 'r5-7600', name: 'AMD Ryzen 5 7600', power: 88, rjc: 0.33, tjmax: 95 },
-    { id: 'r7-7800x3d', name: 'AMD Ryzen 7 7800X3D', power: 88, rjc: 0.36, tjmax: 89 },
-    { id: 'r7-9700x', name: 'AMD Ryzen 7 9700X', power: 88, rjc: 0.3, tjmax: 95 },
-    { id: 'r9-7950x', name: 'AMD Ryzen 9 7950X', power: 230, rjc: 0.2, tjmax: 95 },
-    { id: 'i5-13600k', name: 'Intel Core i5-13600K', power: 181, rjc: 0.22, tjmax: 100 },
-    { id: 'i7-14700k', name: 'Intel Core i7-14700K', power: 253, rjc: 0.18, tjmax: 100 },
-    { id: 'i9-14900k', name: 'Intel Core i9-14900K', power: 253, rjc: 0.17, tjmax: 100 },
-    { id: 'custom', name: 'Custom CPU', power: 125, rjc: 0.25, tjmax: 95 },
-  ];
 
   const CPU_COOLERS = {
     stock: {
@@ -137,16 +127,6 @@
 
   const RADIATOR_THICKNESS = [27, 30, 38, 45, 54, 60];
 
-  const GPUS = [
-    { id: 'rtx4090', name: 'NVIDIA RTX 4090', power: 450, length: 336, slots: 3.5, cooler: 'open-triple', rjc: 0.03, tmax: 88 },
-    { id: 'rtx4080s', name: 'NVIDIA RTX 4080 SUPER', power: 320, length: 310, slots: 3, cooler: 'open-triple', rjc: 0.04, tmax: 88 },
-    { id: 'rtx4070tis', name: 'NVIDIA RTX 4070 Ti SUPER', power: 285, length: 305, slots: 3, cooler: 'open-triple', rjc: 0.05, tmax: 88 },
-    { id: 'rtx4060ti', name: 'NVIDIA RTX 4060 Ti', power: 160, length: 245, slots: 2, cooler: 'open-dual', rjc: 0.08, tmax: 88 },
-    { id: 'rx7900xtx', name: 'AMD RX 7900 XTX', power: 355, length: 320, slots: 3, cooler: 'open-triple', rjc: 0.04, tmax: 90 },
-    { id: 'rx7800xt', name: 'AMD RX 7800 XT', power: 263, length: 280, slots: 2.5, cooler: 'open-dual', rjc: 0.05, tmax: 90 },
-    { id: 'blower250', name: 'Blower-style 250 W card', power: 250, length: 267, slots: 2, cooler: 'blower', rjc: 0.06, tmax: 88 },
-    { id: 'custom', name: 'Custom GPU', power: 220, length: 280, slots: 2.5, cooler: 'open-dual', rjc: 0.06, tmax: 88 },
-  ];
 
   const GPU_COOLERS = {
     'open-dual': {
@@ -175,6 +155,7 @@
       version: 1,
       ambient: 24,
       otherHeat: 40,
+      workload: 'stress',
       units: { flow: 'cfm', pressure: 'pa' },
       case: {
         name: 'Mesh mid-tower',
@@ -194,12 +175,12 @@
         'rear-0': slot('exhaust', 'arctic-p12', 0.7),
       },
       cpu: {
-        model: 'r7-7800x3d', power: 88, rjc: 0.36, tjmax: 89,
-        cooler: 'tower-single', coolerFan: 'arctic-p12', coolerFanCount: 1, coolerFanSpeed: 0.7,
+        model: 'r7-7800x3d', socket: 'AM5', power: 88, rjc: 0.36, tjmax: 89,
+        cooler: 'tower-single', coolerModel: 'generic-tower-single', coolerFan: 'arctic-p12', coolerFanCount: 1, coolerFanSpeed: 0.7,
         aio: { panel: 'top', fans: 3, thickness: 27, pushPull: false },
       },
       gpu: {
-        model: 'rtx4070tis', power: 285, length: 305, slots: 3, cooler: 'open-triple',
+        model: 'rtx4070tis-ventus', power: 285, length: 308, slots: 2.5, cooler: 'open-triple', flowThrough: true,
         rjc: 0.05, tmax: 88, fanSpeed: 0.6, fanCount: 3,
       },
     };
@@ -245,9 +226,9 @@
         'top-2': slot('exhaust', 'arctic-p12', 0.75),
         'rear-0': slot('exhaust', 'arctic-p12', 0.7),
       };
-      Object.assign(c.cpu, { model: 'i9-14900k', power: 253, rjc: 0.17, tjmax: 100, cooler: 'aio' });
+      Object.assign(c.cpu, { model: 'i9-14900k', socket: 'LGA1700', power: 253, rjc: 0.17, tjmax: 100, cooler: 'aio', coolerModel: 'generic-aio' });
       c.cpu.aio = { panel: 'top', fans: 3, thickness: 27, pushPull: false };
-      Object.assign(c.gpu, { model: 'rtx4090', power: 450, length: 336, slots: 3.5, cooler: 'open-triple', rjc: 0.03, fanSpeed: 0.65 });
+      Object.assign(c.gpu, { model: 'rtx4090-suprim', power: 450, length: 336, slots: 3.8, cooler: 'open-triple', flowThrough: true, rjc: 0.03, fanSpeed: 0.65 });
     }),
     preset('dual-chamber', 'Dual-chamber showcase: bottom + side intake, top exhaust', (c) => {
       c.case.name = 'Dual-chamber showcase';
@@ -285,8 +266,8 @@
         'front-1': slot('intake', 'noctua-a12x25', 0.7, 'nylon'),
         'rear-0': slot('exhaust', 'noctua-a12x25', 0.7),
       };
-      Object.assign(c.cpu, { model: 'r7-9700x', power: 88, rjc: 0.3, tjmax: 95, cooler: 'lowprofile' });
-      Object.assign(c.gpu, { model: 'rtx4060ti', power: 160, length: 245, slots: 2, cooler: 'open-dual', rjc: 0.08, fanCount: 2 });
+      Object.assign(c.cpu, { model: 'r7-9700x', socket: 'AM5', power: 88, rjc: 0.3, tjmax: 95, cooler: 'lowprofile', coolerModel: 'generic-lowprofile' });
+      Object.assign(c.gpu, { model: 'rtx4060ti-dual', power: 160, length: 227, slots: 2.5, cooler: 'open-dual', flowThrough: false, rjc: 0.08, fanCount: 2 });
     }),
     preset('negative', 'Exhaust-heavy (negative pressure) example', (c) => {
       c.case.panels.top.fanSize = 120;
@@ -302,7 +283,7 @@
 
   AF.data = {
     UNITS, PHYSICS, FANS, PANEL_TYPES, FILTERS, PANELS, MOTHERBOARDS, motherboardConfig, LEGACY_FORM_FACTORS,
-    CPUS, CPU_COOLERS, RADIATOR_THICKNESS, GPUS, GPU_COOLERS, PRESETS, baseConfig,
+    CPU_COOLERS, RADIATOR_THICKNESS, GPU_COOLERS, PRESETS, baseConfig,
   };
 
   if (typeof module === 'object' && module.exports) module.exports = AF;

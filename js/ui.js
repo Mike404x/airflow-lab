@@ -88,7 +88,7 @@
 
   function fanOptions(size) {
     return AF.data.FANS.filter((f) => f.size === size)
-      .map((f) => ({ value: f.id, label: `${f.name} (${f.cfm} CFM, ${f.mmh2o} mmH₂O)` }))
+      .map((f) => ({ value: f.id, label: AF.catalog.fanLabel(f) }))
       .concat([{ value: 'custom', label: 'Custom fan…' }]);
   }
 
@@ -102,20 +102,85 @@
   }
 
   const pct = (v) => `${Math.round(v * 100)}%`;
+  const CUSTOM = '__custom';
+
+  function groupOptions(list) {
+    const groups = [];
+    for (const item of list) {
+      let g = groups.find((x) => x.label === item.group);
+      if (!g) groups.push(g = { label: item.group, options: [] });
+      g.options.push({ value: item.id, label: item.name });
+    }
+    return groups;
+  }
+
+  function picker(groups, value, onChange, customLabel) {
+    const sel = h('select', { onchange: (e) => { if (e.target.value) onChange(e.target.value); } });
+    const search = h('input', { type: 'search', class: 'picker-search', placeholder: 'Search…' });
+    const known = groups.some((g) => g.options.some((o) => o.value === value));
+    const fill = (query) => {
+      sel.replaceChildren();
+      const needle = query.trim().toLowerCase();
+      const matches = groups.map((g) => ({
+        label: g.label,
+        options: g.options.filter((o) => !needle || `${g.label} ${o.label}`.toLowerCase().includes(needle)),
+      })).filter((g) => g.options.length);
+      if (needle) {
+        const count = matches.reduce((n, g) => n + g.options.length, 0);
+        const hintOpt = h('option', { value: '', disabled: true }, count ? `${count} match${count > 1 ? 'es' : ''}, choose one…` : 'No matches');
+        hintOpt.selected = true;
+        sel.append(hintOpt);
+      }
+      if (customLabel && !needle) {
+        const opt = h('option', { value: CUSTOM }, customLabel);
+        if (!known) opt.selected = true;
+        sel.append(opt);
+      }
+      for (const g of matches) {
+        const og = h('optgroup', { label: g.label });
+        for (const o of g.options) {
+          const opt = h('option', { value: o.value }, o.label);
+          if (!needle && o.value === value) opt.selected = true;
+          og.append(opt);
+        }
+        sel.append(og);
+      }
+    };
+    search.addEventListener('input', () => fill(search.value));
+    fill('');
+    return h('div', { class: 'picker' }, search, sel);
+  }
+
+  function details(title, open, ...children) {
+    return h('details', { class: 'sub', open }, h('summary', {}, title), ...children);
+  }
+
+  function summary(text) {
+    return h('div', { class: 'summary' }, text);
+  }
 
   function buildConfigPanel(rootEl, app) {
     const config = app.state.config;
     const D = AF.data;
+    const C = AF.catalog;
     const update = (fn) => app.update(fn);
     const live = (fn) => app.update(fn, { live: true });
     rootEl.replaceChildren();
 
     const c = config.case;
+    const caseEntry = C.byId(C.CASES, c.model);
+    const editDims = (fn) => update((cfg) => {
+      fn(cfg);
+      cfg.case.model = null;
+      cfg.case.maxGpu = null;
+      cfg.case.maxCooler = null;
+      cfg.case.support = null;
+    });
     const panelRows = Object.keys(D.PANELS).map((key) => h('tr', {},
       h('td', {}, D.PANELS[key].name),
       h('td', {}, select(Object.entries(D.PANEL_TYPES).map(([v, t]) => ({ value: v, label: t.name })), c.panels[key].type,
         (v) => update((cfg) => { cfg.case.panels[key].type = v; }))),
-      h('td', {}, select(D.PANELS[key].sizes.map((s) => ({ value: s, label: `${s} mm` })), c.panels[key].fanSize,
+      h('td', {}, select(C.supportedSizes(config, key).map((s) => ({ value: s, label: `${s} mm` })), c.panels[key].fanSize,
         (v) => update((cfg) => {
           const size = +v;
           cfg.case.panels[key].fanSize = size;
@@ -125,80 +190,88 @@
             if (!spec || spec.size !== size) sc.fan = (D.FANS.find((f) => f.size === size) || D.FANS[0]).id;
           }
         })))));
-
+    const frontCap = AF.geometry.frontSlotCapacity(config);
     rootEl.append(section('Case', true,
-      field('Name', text(c.name, (v) => update((cfg) => { cfg.case.name = v; }))),
-      h('div', { class: 'grid3' },
-        field('Height (mm)', number(c.height, 280, 700, 1, (v) => update((cfg) => { cfg.case.height = v; }))),
-        field('Depth (mm)', number(c.depth, 280, 650, 1, (v) => update((cfg) => { cfg.case.depth = v; }))),
-        field('Width (mm)', number(c.width, 150, 350, 1, (v) => update((cfg) => { cfg.case.width = v; })))),
-      h('div', { class: 'row' },
-        checkbox(c.shroud, (v) => update((cfg) => { cfg.case.shroud = v; }), 'PSU shroud'),
-        checkbox(c.pcieVented, (v) => update((cfg) => { cfg.case.pcieVented = v; }), 'Vented PCIe slot covers')),
-      field('Front fan mounts', select(
-        Array.from({ length: AF.geometry.frontSlotCapacity(config) }, (_, k) => ({ value: k + 1, label: `${k + 1} × ${c.panels.front.fanSize} mm` })),
-        Math.min(c.frontSlots == null ? 3 : c.frontSlots, AF.geometry.frontSlotCapacity(config)),
-        (v) => update((cfg) => { cfg.case.frontSlots = +v; })),
-        `Up to ${AF.geometry.frontSlotCapacity(config)} fit in a ${c.height} mm tall case. The shroud stops short of the front fans so the bottom fan feeds the main chamber.`),
-      h('button', { class: 'btn small', onclick: () => app.fillFront() }, 'Fill all front mounts with intake fans'),
-      h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan size'))), h('tbody', {}, panelRows)),
-      h('div', { class: 'hint' }, 'Click a fan slot in the view to set its fan. Empty slots on open panels work as passive vents.')));
+      field('Case model', picker(groupOptions(C.CASES), c.model, (v) => {
+        if (v === CUSTOM) editDims(() => {}); else update((cfg) => C.applyCase(cfg, v));
+      }, 'Custom / generic case')),
+      caseEntry ? summary(`${c.depth} × ${c.width} × ${c.height} mm · GPU up to ${c.maxGpu} mm · cooler up to ${c.maxCooler} mm · bundled fans installed`) : null,
+      details('Dimensions & panels', !caseEntry,
+        field('Name', text(c.name, (v) => update((cfg) => { cfg.case.name = v; }))),
+        h('div', { class: 'grid3' },
+          field('Height (mm)', number(c.height, 280, 700, 1, (v) => editDims((cfg) => { cfg.case.height = v; }))),
+          field('Depth (mm)', number(c.depth, 280, 650, 1, (v) => editDims((cfg) => { cfg.case.depth = v; }))),
+          field('Width (mm)', number(c.width, 150, 350, 1, (v) => editDims((cfg) => { cfg.case.width = v; })))),
+        h('div', { class: 'row' },
+          checkbox(c.shroud, (v) => update((cfg) => { cfg.case.shroud = v; }), 'PSU shroud'),
+          checkbox(c.pcieVented, (v) => update((cfg) => { cfg.case.pcieVented = v; }), 'Vented PCIe slot covers')),
+        frontCap > 0 ? field('Front fan mounts', select(
+          Array.from({ length: frontCap }, (_, k) => ({ value: k + 1, label: `${k + 1} × ${c.panels.front.fanSize} mm` })),
+          Math.max(1, Math.min(c.frontSlots == null ? 3 : c.frontSlots, frontCap)),
+          (v) => update((cfg) => { cfg.case.frontSlots = +v; })),
+          `Up to ${frontCap} fit at this fan size.`) : null,
+        h('table', { class: 'panel-table' }, h('thead', {}, h('tr', {}, h('th', {}, 'Panel'), h('th', {}, 'Type'), h('th', {}, 'Fan size'))), h('tbody', {}, panelRows))),
+      frontCap > 0 ? h('button', { class: 'btn small', onclick: () => app.fillFront() }, 'Fill all front mounts with intake fans') : null,
+      h('div', { class: 'hint' }, 'Click a fan slot in the view to change its fan. Empty slots on open panels work as passive vents.')));
 
     const board = AF.geometry.motherboardOf(config);
+    const boardEntry = C.boardOf(config);
     const setBoard = (patch) => update((cfg) => { cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), patch); });
-    const boardModel = D.MOTHERBOARDS.find((m) => m.id === board.model);
-    const modified = boardModel && ['width', 'height', 'socketX', 'socketY', 'slot1Y', 'x16Slot'].some((k) => boardModel[k] !== board[k]);
+    const layoutEntry = D.MOTHERBOARDS.find((m) => m.id === board.model);
     rootEl.append(section('Motherboard', true,
-      field('Layout', select(D.MOTHERBOARDS.map((m) => ({ value: m.id, label: m.name })), board.model,
-        (v) => update((cfg) => { cfg.case.motherboard = D.motherboardConfig(v); })),
-        modified ? 'Modified from the preset layout.' : null),
-      h('div', { class: 'grid2' },
-        field('Board width (mm)', number(board.width, 150, 360, 1, (v) => setBoard({ width: v }))),
-        field('Board height (mm)', number(board.height, 150, 360, 1, (v) => setBoard({ height: v })))),
-      h('div', { class: 'grid2' },
-        field('Socket from rear edge (mm)', number(board.socketX, 40, board.width - 30, 1, (v) => setBoard({ socketX: v }))),
-        field('Socket from top edge (mm)', number(board.socketY, 35, board.height - 40, 1, (v) => setBoard({ socketY: v })))),
-      h('div', { class: 'grid2' },
-        field('GPU in PCIe slot', select(Array.from({ length: board.slotCount }, (_, k) => ({ value: k + 1, label: `Slot ${k + 1}${k === 0 ? ' (top)' : ''}` })), board.x16Slot,
-          (v) => setBoard({ x16Slot: +v }))),
-        field('Slot 1 from top edge (mm)', number(board.slot1Y, 90, Math.max(91, board.height - 20), 1, (v) => setBoard({ slot1Y: v })))),
-      h('div', { class: 'hint' }, 'The socket position moves the CPU cooler. The slot choice sets how high the GPU sits and how much room it leaves under the cooler and above the shroud. Values are typical layouts; check your board manual for exact positions.')));
+      field('Motherboard', picker(groupOptions(C.BOARDS), board.product, (v) => update((cfg) => {
+        if (v === CUSTOM) cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), { product: null, socket: null });
+        else C.applyBoard(cfg, v);
+      }), 'Generic board (choose layout)')),
+      summary(`${boardEntry ? `${boardEntry.socket} · ` : ''}${layoutEntry ? layoutEntry.form : ''} ${board.width} × ${board.height} mm · GPU in slot ${board.x16Slot}`),
+      details('Layout details', !boardEntry,
+        field('Layout', select(D.MOTHERBOARDS.map((m) => ({ value: m.id, label: m.name })), board.model,
+          (v) => update((cfg) => { cfg.case.motherboard = Object.assign(D.motherboardConfig(v), { product: board.product, socket: board.socket }); }))),
+        h('div', { class: 'grid2' },
+          field('Board width (mm)', number(board.width, 150, 360, 1, (v) => setBoard({ width: v }))),
+          field('Board height (mm)', number(board.height, 150, 360, 1, (v) => setBoard({ height: v })))),
+        h('div', { class: 'grid2' },
+          field('Socket from rear edge (mm)', number(board.socketX, 40, board.width - 30, 1, (v) => setBoard({ socketX: v }))),
+          field('Socket from top edge (mm)', number(board.socketY, 35, board.height - 40, 1, (v) => setBoard({ socketY: v })))),
+        h('div', { class: 'grid2' },
+          field('GPU in PCIe slot', select(Array.from({ length: board.slotCount }, (_, k) => ({ value: k + 1, label: `Slot ${k + 1}${k === 0 ? ' (top)' : ''}` })), board.x16Slot,
+            (v) => setBoard({ x16Slot: +v }))),
+          field('Slot 1 from top edge (mm)', number(board.slot1Y, 90, Math.max(91, board.height - 20), 1, (v) => setBoard({ slot1Y: v })))),
+        h('div', { class: 'hint' }, 'Board layouts are typical for the form factor. If your manual shows a different x16 slot or socket position, adjust it here.'))));
 
     const cpu = config.cpu;
-    const cooler = D.CPU_COOLERS[cpu.cooler];
-    const cpuChildren = [
-      field('Processor', select(D.CPUS.map((p) => ({ value: p.id, label: p.name })), cpu.model, (v) => update((cfg) => {
-        const p = D.CPUS.find((x) => x.id === v);
-        Object.assign(cfg.cpu, { model: v, power: p.power, rjc: p.rjc, tjmax: p.tjmax });
-      }))),
-      h('div', { class: 'grid3' },
-        field('Load power (W)', number(cpu.power, 5, 500, 1, (v) => update((cfg) => { cfg.cpu.power = v; }))),
-        field('Tjmax (°C)', number(cpu.tjmax, 60, 115, 1, (v) => update((cfg) => { cfg.cpu.tjmax = v; }))),
-        field('Die→IHS (°C/W)', number(cpu.rjc, 0.05, 1, 0.01, (v) => update((cfg) => { cfg.cpu.rjc = v; })))),
-      field('Cooler', select(Object.entries(D.CPU_COOLERS).map(([v, k]) => ({ value: v, label: k.name })), cpu.cooler, (v) => update((cfg) => {
-        cfg.cpu.cooler = v;
-        const k = D.CPU_COOLERS[v];
-        if (k.type === 'tower') {
-          cfg.cpu.coolerFan = k.defaultFan;
-          cfg.cpu.coolerFanCount = k.defaultFanCount;
-        }
-      }))),
+    const cpuEntry = C.byId(C.CPUS, cpu.model);
+    rootEl.append(section('Processor', true,
+      field('CPU', picker(groupOptions(C.CPUS), cpu.model, (v) => update((cfg) => {
+        if (v === CUSTOM) { cfg.cpu.model = 'custom'; cfg.cpu.socket = null; } else C.applyCpu(cfg, v);
+      }), 'Custom CPU')),
+      summary(`${cpuEntry ? `${cpuEntry.socket} · ` : ''}${cpu.power} W (${config.workload === 'gaming' ? 'gaming' : 'full load'}) · Tjmax ${cpu.tjmax} °C`),
+      details('Power & thermal details', !cpuEntry,
+        h('div', { class: 'grid3' },
+          field('Load power (W)', number(cpu.power, 5, 500, 1, (v) => update((cfg) => { cfg.cpu.power = v; }))),
+          field('Tjmax (°C)', number(cpu.tjmax, 60, 115, 1, (v) => update((cfg) => { cfg.cpu.tjmax = v; }))),
+          field('Die→IHS (°C/W)', number(cpu.rjc, 0.05, 1, 0.01, (v) => update((cfg) => { cfg.cpu.rjc = v; })))))));
+
+    const cooler = C.cpuCooler(config);
+    const coolerChildren = [
+      field('Cooler', picker(groupOptions(C.COOLERS), cpu.coolerModel || `generic-${cpu.cooler}`, (v) => update((cfg) => C.applyCooler(cfg, v)))),
+      cooler.type !== 'aio' ? summary(`${cooler.height} mm tall${cooler.type === 'tower' ? ` · ${cpu.coolerFanCount || cooler.defaultFanCount} × ${cooler.fanSize} mm fan` : ''}`) : null,
     ];
     if (cooler.type === 'tower') {
-      cpuChildren.push(
+      coolerChildren.push(
         field(`Cooler fan (${cooler.fanSize} mm)`, select(fanOptions(cooler.fanSize), cpu.coolerFan, (v) => update((cfg) => { cfg.cpu.coolerFan = v; }))),
         cpu.coolerFan === 'custom' ? customFanFields(cpu.coolerCustom, (v) => update((cfg) => { cfg.cpu.coolerCustom = Object.assign(v, { size: cooler.fanSize }); })) : null,
         field('Fans on cooler', select(Array.from({ length: cooler.maxFanCount }, (_, k) => ({ value: k + 1, label: k === 0 ? '1 fan' : `${k + 1} fans (series)` })), cpu.coolerFanCount,
           (v) => update((cfg) => { cfg.cpu.coolerFanCount = +v; }))));
     }
     if (cooler.type !== 'aio') {
-      cpuChildren.push(field('Cooler fan speed', slider(cpu.coolerFanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.cpu.coolerFanSpeed = v; }))));
+      coolerChildren.push(field('Cooler fan speed', slider(cpu.coolerFanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.cpu.coolerFanSpeed = v; }))));
     } else {
       const aio = cpu.aio;
       const radPanels = ['front', 'top', 'rear', 'bottom'].filter((p) => app.state.layout.slots.some((s) => s.panel === p && s.available) || p === aio.panel);
       const maxFans = aio.panel === 'rear' ? 1 : 3;
       const sizeLabel = (n) => `${n * c.panels[aio.panel].fanSize} mm (${n} × ${c.panels[aio.panel].fanSize})`;
-      cpuChildren.push(
+      coolerChildren.push(
         h('div', { class: 'grid2' },
           field('Radiator location', select(radPanels.map((p) => ({ value: p, label: D.PANELS[p].name })), aio.panel,
             (v) => update((cfg) => { cfg.cpu.aio.panel = v; if (v === 'rear') cfg.cpu.aio.fans = 1; }))),
@@ -208,33 +281,44 @@
           field('Thickness', select(D.RADIATOR_THICKNESS.map((t) => ({ value: t, label: `${t} mm` })), aio.thickness, (v) => update((cfg) => { cfg.cpu.aio.thickness = +v; }))),
           field('Fans', checkbox(aio.pushPull, (v) => update((cfg) => { cfg.cpu.aio.pushPull = v; }), 'Push-pull'))),
         h('button', { class: 'btn small', onclick: () => app.fillRadiatorFans() }, 'Put fans on empty radiator slots'),
-        h('div', { class: 'hint' }, 'Radiator fans are the slot fans of that panel. Set them to intake or exhaust in the view.'));
+        h('div', { class: 'hint' }, 'Choosing an AIO model mounts its radiator with its bundled fans. Radiator fans are the slot fans of that panel; click them in the view to edit.'));
     }
-    rootEl.append(section('CPU & cooler', true, ...cpuChildren));
+    rootEl.append(section('CPU cooler', true, ...coolerChildren));
 
     const gpu = config.gpu;
-    const gpuCooler = D.GPU_COOLERS[gpu.cooler];
+    const gpuEntry = C.byId(C.GPUS, gpu.model);
+    const gpuCooler = C.gpuCooler(config);
+    const thicknessOptions = Array.from(new Set([1, 2, 2.5, 3, 3.5, 4, gpu.slots])).sort((a, b) => a - b);
     rootEl.append(section('Graphics card', true,
-      field('GPU', select(D.GPUS.map((g) => ({ value: g.id, label: g.name })), gpu.model, (v) => update((cfg) => {
-        const g = D.GPUS.find((x) => x.id === v);
-        Object.assign(cfg.gpu, { model: v, power: g.power, length: g.length, slots: g.slots, cooler: g.cooler, rjc: g.rjc, tmax: g.tmax, fanCount: D.GPU_COOLERS[g.cooler].fanCount });
-      }))),
-      h('div', { class: 'grid3' },
-        field('Board power (W)', number(gpu.power, 10, 700, 1, (v) => update((cfg) => { cfg.gpu.power = v; }))),
-        field('Length (mm)', number(gpu.length, 150, 420, 1, (v) => update((cfg) => { cfg.gpu.length = v; }))),
-        field('Thickness', select([1, 2, 2.5, 3, 3.5, 4].map((s) => ({ value: s, label: `${s} slot` })), gpu.slots, (v) => update((cfg) => { cfg.gpu.slots = +v; })))),
-      h('div', { class: 'grid2' },
-        field('Cooler', select(Object.entries(D.GPU_COOLERS).map(([v, k]) => ({ value: v, label: k.name })), gpu.cooler,
-          (v) => update((cfg) => { cfg.gpu.cooler = v; cfg.gpu.fanCount = D.GPU_COOLERS[v].fanCount; }))),
-        gpuCooler.type === 'open'
-          ? field('GPU fans', select([1, 2, 3].map((n) => ({ value: n, label: `${n} fan${n > 1 ? 's' : ''}` })), gpu.fanCount || gpuCooler.fanCount, (v) => update((cfg) => { cfg.gpu.fanCount = +v; })))
-          : h('div')),
+      field('GPU', picker(groupOptions(C.GPUS), gpu.model, (v) => update((cfg) => {
+        if (v === CUSTOM) cfg.gpu.model = 'custom'; else C.applyGpu(cfg, v);
+      }), 'Custom GPU')),
+      summary(`${gpu.length} mm · ${gpu.slots} slot · ${gpu.power} W · ${gpuCooler.type === 'blower' ? 'blower' : `${gpu.fanCount || gpuCooler.fanCount} fans${gpuCooler.flowThrough ? ', flow-through' : ''}`}`),
       field('GPU fan speed', slider(gpu.fanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.gpu.fanSpeed = v; }))),
-      h('div', { class: 'grid2' },
-        field('Temp limit (°C)', number(gpu.tmax, 60, 110, 1, (v) => update((cfg) => { cfg.gpu.tmax = v; }))),
-        field('Die resistance (°C/W)', number(gpu.rjc, 0.01, 0.5, 0.005, (v) => update((cfg) => { cfg.gpu.rjc = v; }))))));
+      details('Card details', !gpuEntry,
+        h('div', { class: 'grid3' },
+          field('Board power (W)', number(gpu.power, 10, 700, 1, (v) => update((cfg) => { cfg.gpu.power = v; }))),
+          field('Length (mm)', number(gpu.length, 150, 420, 1, (v) => update((cfg) => { cfg.gpu.length = v; }))),
+          field('Thickness', select(thicknessOptions.map((s) => ({ value: s, label: `${s} slot` })), gpu.slots, (v) => update((cfg) => { cfg.gpu.slots = +v; })))),
+        h('div', { class: 'grid2' },
+          field('Cooler', select(Object.entries(D.GPU_COOLERS).map(([v, k]) => ({ value: v, label: k.name })), gpu.cooler,
+            (v) => update((cfg) => { cfg.gpu.cooler = v; cfg.gpu.fanCount = D.GPU_COOLERS[v].fanCount; cfg.gpu.flowThrough = D.GPU_COOLERS[v].flowThrough; }))),
+          gpuCooler.type === 'open'
+            ? field('GPU fans', select([1, 2, 3, 4].map((n) => ({ value: n, label: `${n} fan${n > 1 ? 's' : ''}` })), gpu.fanCount || gpuCooler.fanCount, (v) => update((cfg) => { cfg.gpu.fanCount = +v; })))
+            : h('div')),
+        gpuCooler.type === 'open' ? checkbox(gpuCooler.flowThrough, (v) => update((cfg) => { cfg.gpu.flowThrough = v; }), 'Flow-through cooler (short PCB)') : null,
+        h('div', { class: 'grid2' },
+          field('Temp limit (°C)', number(gpu.tmax, 60, 110, 1, (v) => update((cfg) => { cfg.gpu.tmax = v; }))),
+          field('Die resistance (°C/W)', number(gpu.rjc, 0.01, 0.5, 0.005, (v) => update((cfg) => { cfg.gpu.rjc = v; })))))));
 
-    rootEl.append(section('Environment & units', true,
+    rootEl.append(section('Workload, environment & units', true,
+      field('Workload', select([{ value: 'stress', label: 'Full load (stress test / rendering)' }, { value: 'gaming', label: 'Gaming (typical power)' }], config.workload || 'stress',
+        (v) => update((cfg) => {
+          cfg.workload = v;
+          if (C.byId(C.CPUS, cfg.cpu.model)) C.applyCpu(cfg, cfg.cpu.model);
+          const g = C.byId(C.GPUS, cfg.gpu.model);
+          if (g) cfg.gpu.power = C.gpuPower(g, v);
+        })), 'Sets CPU and GPU power from the selected parts.'),
       h('div', { class: 'grid2' },
         field('Room temperature (°C)', number(config.ambient, 5, 45, 0.5, (v) => update((cfg) => { cfg.ambient = v; }))),
         field('Other heat (W)', number(config.otherHeat, 0, 300, 1, (v) => update((cfg) => { cfg.otherHeat = v; })), 'VRM, RAM, SSDs, chipset')),
@@ -263,7 +347,7 @@
     const dynamic = h('div', { class: 'editor-dynamic' });
 
     if (id === 'cpu-cooler') {
-      const cooler = D.CPU_COOLERS[config.cpu.cooler];
+      const cooler = AF.catalog.cpuCooler(config);
       body.append(h('h3', {}, `CPU cooler · ${cooler.name}`));
       if (cooler.type === 'aio') {
         body.append(h('p', { class: 'hint' }, 'AIO radiator fans are the case fans on the radiator slots. Select them in the view to edit.'));
@@ -274,7 +358,7 @@
         body.append(field('Fan speed', slider(config.cpu.coolerFanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.cpu.coolerFanSpeed = v; }))));
       }
     } else if (id === 'gpu-cooler') {
-      const cooler = D.GPU_COOLERS[config.gpu.cooler];
+      const cooler = AF.catalog.gpuCooler(config);
       body.append(h('h3', {}, `GPU cooler · ${cooler.name}`));
       body.append(field('Fan speed', slider(config.gpu.fanSpeed, 0, 1, 0.01, pct, (v) => live((cfg) => { cfg.gpu.fanSpeed = v; }))));
     } else {
@@ -453,7 +537,7 @@
     const tRow = (label, a, b, hot) => h('tr', { class: hot ? 'hot' : '' }, h('td', {}, label), h('td', {}, a), h('td', {}, b));
     const cpuT = (t) => `${t.cpu.temp.toFixed(1)} °C${t.cpu.throttled ? ' ⚠' : ''}`;
     const gpuT = (t) => `${t.gpu.temp.toFixed(1)} °C${t.gpu.throttled ? ' ⚠' : ''}`;
-    const cooler = AF.data.CPU_COOLERS[st.config.cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(st.config);
     rootEl.append(h('div', { class: 'card' },
       h('div', { class: 'card-title' }, 'Temperatures', h('span', { class: `status ${ready ? 'ok' : ''}` }, ready ? 'CFD converged' : `CFD ${progress}%`)),
       h('table', { class: 'temps' },

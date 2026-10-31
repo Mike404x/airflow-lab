@@ -170,8 +170,11 @@
       const fmt = this.fmt;
       const id = this.renderer.hitTest(px, py);
       if (id) {
-        if (id === 'cpu-cooler') return `<b>CPU cooler</b><br>${AF.data.CPU_COOLERS[st.config.cpu.cooler].name}<br>Click to edit`;
-        if (id === 'gpu-cooler') return `<b>GPU</b><br>${AF.data.GPU_COOLERS[st.config.gpu.cooler].name}<br>Click to edit`;
+        if (id === 'cpu-cooler') return `<b>CPU cooler</b><br>${AF.catalog.cpuCooler(st.config).name}<br>Click to edit`;
+        if (id === 'gpu-cooler') {
+          const g = AF.catalog.byId(AF.catalog.GPUS, st.config.gpu.model);
+          return `<b>${g ? g.name : 'GPU'}</b><br>${AF.catalog.gpuCooler(st.config).name}<br>Click to edit`;
+        }
         const el = st.air.elements.find((e) => e.id === id);
         const slot = st.layout.slots.find((s) => s.id === id);
         if (!slot) return null;

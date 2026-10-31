@@ -109,7 +109,7 @@
       }
 
       const gpu = comps.gpu;
-      const gpuCooler = AF.data.GPU_COOLERS[config.gpu.cooler];
+      const gpuCooler = AF.catalog.gpuCooler(config);
       const pcbRows = this.spanY(gpu.pcbTop, gpu.pcbBottom);
       const sinkJ0 = pcbRows[1] + 1;
       const sinkJ1 = Math.max(sinkJ0 + 1, this.cellY(gpu.sinkBottom - 1e-6));
@@ -123,7 +123,7 @@
       }
 
       const cool = comps.cpuCooler;
-      const cpuCooler = AF.data.CPU_COOLERS[config.cpu.cooler];
+      const cpuCooler = AF.catalog.cpuCooler(config);
       if (cpuCooler.type !== 'aio') {
         this.cpuBox = this.rect(cool.x, cool.y, cool.x + cool.w, cool.y + cool.h, (i, j, c) => {
           if (type[c] === FLUID) this.region[c] = REGION_CPU;
@@ -403,7 +403,7 @@
         if (this.region[c] === REGION_CPU) cpuCells.push(c);
         else if (this.region[c] === REGION_GPU) gpuCells.push(c);
       }
-      const cooler = AF.data.CPU_COOLERS[this.config.cpu.cooler];
+      const cooler = AF.catalog.cpuCooler(this.config);
       if (cooler.type === 'aio') {
         for (const s of thermal.sections) {
           const rad = this.radCells[s.element.id];

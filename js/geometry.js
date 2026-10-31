@@ -9,6 +9,10 @@
     return Math.max(0, Math.min(limit, Math.floor((length + gap) / (size + gap))));
   }
 
+  function cap(config, panel, size) {
+    return AF.catalog ? AF.catalog.supportCap(config, panel, size) : Infinity;
+  }
+
   function shroudTop(config) {
     const P = AF.data.PHYSICS;
     return config.case.shroud ? config.case.height - P.shroudHeight : config.case.height;
@@ -17,7 +21,7 @@
   function frontSlotCapacity(config) {
     const P = AF.data.PHYSICS;
     const size = config.case.panels.front.fanSize;
-    return fitCount(config.case.height - 2 * P.panelEdge, size, P.slotGap, size >= 200 ? 2 : P.maxFrontSlots);
+    return Math.min(cap(config, 'front', size), fitCount(config.case.height - 2 * P.panelEdge, size, P.slotGap, size >= 160 ? 2 : P.maxFrontSlots));
   }
 
   function frontSlotCount(config) {
@@ -46,7 +50,7 @@
     }
 
     const topSize = panels.top.fanSize;
-    const topCount = fitCount(D - P.topRearOffset - edge, topSize, gap, maxSlotsFor(topSize));
+    const topCount = Math.min(cap(config, 'top', topSize), fitCount(D - P.topRearOffset - edge, topSize, gap, maxSlotsFor(topSize)));
     for (let k = 0; k < topCount; k++) {
       slots.push({
         id: `top-${k}`, panel: 'top', index: k, size: topSize,
@@ -55,14 +59,16 @@
     }
 
     const rearSize = panels.rear.fanSize;
-    slots.push({
-      id: 'rear-0', panel: 'rear', index: 0, size: rearSize,
-      cx: 0, cy: edge + 10 + rearSize / 2, axis: 'x', inward: 1,
-    });
+    if (cap(config, 'rear', rearSize) >= 1) {
+      slots.push({
+        id: 'rear-0', panel: 'rear', index: 0, size: rearSize,
+        cx: 0, cy: edge + 10 + rearSize / 2, axis: 'x', inward: 1,
+      });
+    }
 
     if (!c.shroud) {
       const bottomSize = panels.bottom.fanSize;
-      const bottomCount = fitCount(D - 2 * edge - 30, bottomSize, gap, maxSlotsFor(bottomSize));
+      const bottomCount = Math.min(cap(config, 'bottom', bottomSize), fitCount(D - 2 * edge - 30, bottomSize, gap, maxSlotsFor(bottomSize)));
       for (let k = 0; k < bottomCount; k++) {
         slots.push({
           id: `bottom-${k}`, panel: 'bottom', index: k, size: bottomSize,
@@ -77,8 +83,10 @@
       const rows = [rowBottom - (sideSize + gap), rowBottom].filter((y) => y - sideSize / 2 > edge);
       const cols = [D - 30 - sideSize / 2, D - 30 - sideSize / 2 - (sideSize + gap)].filter((x) => x - sideSize / 2 > edge);
       let k = 0;
+      const sideCap = cap(config, 'side', sideSize);
       for (const cx of cols) {
         for (const cy of rows) {
+          if (k >= sideCap) break;
           slots.push({ id: `side-${k}`, panel: 'side', index: k, size: sideSize, cx, cy, axis: 'z', inward: 0 });
           k++;
         }
@@ -99,7 +107,7 @@
   }
 
   function radiatorSlots(config, slots) {
-    const cooler = AF.data.CPU_COOLERS[config.cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(config);
     if (!cooler || cooler.type !== 'aio') return [];
     const aio = config.cpu.aio;
     return slots.filter((s) => s.panel === aio.panel && s.index < aio.fans);
@@ -121,7 +129,7 @@
     const pcieSlots = Array.from({ length: board.slotCount }, (_, k) => ({
       index: k + 1, y: mobo.y + board.slot1Y + k * P.pcieSlotPitchMm, primary: k + 1 === x16,
     }));
-    const cooler = AF.data.CPU_COOLERS[config.cpu.cooler];
+    const cooler = AF.catalog.cpuCooler(config);
 
     let cpuCooler;
     if (cooler.type === 'tower') {
@@ -134,7 +142,7 @@
     const g = config.gpu;
     const slotsThickness = g.slots * P.pcieSlotPitchMm;
     const pcbTop = mobo.y + board.slot1Y + (x16 - 1) * P.pcieSlotPitchMm;
-    const gpuCooler = AF.data.GPU_COOLERS[g.cooler];
+    const gpuCooler = AF.catalog.gpuCooler(config);
     const gpu = {
       x: 0, length: g.length, pcbTop,
       pcbBottom: pcbTop + P.gpuPcbThickness,
@@ -164,17 +172,22 @@
     const frontUsed = slots.some((s) => s.panel === 'front' && slotConfig(config, s.id).mode !== 'empty');
     const frontRad = comps.radiator && config.cpu.aio.panel === 'front' ? comps.radiator.thickness : 0;
     const frontDepth = (frontUsed ? P.fanThickness : 0) + frontRad + (frontRad && config.cpu.aio.pushPull ? P.fanThickness : 0);
-    const gpuSpace = c.depth - frontDepth;
+    const radExtra = frontRad + (frontRad && config.cpu.aio.pushPull ? P.fanThickness : 0);
+    const gpuSpace = c.maxGpu ? Math.min(c.maxGpu - radExtra, c.depth - frontDepth) : c.depth - frontDepth;
     if (config.gpu.length > gpuSpace) {
-      issues.push({ level: 'error', text: `GPU (${config.gpu.length} mm) does not fit: only ${Math.round(gpuSpace)} mm before the front fans/radiator.` });
+      issues.push({ level: 'error', text: `GPU (${config.gpu.length} mm) does not fit: the case allows ${Math.round(gpuSpace)} mm${radExtra ? ' with the front radiator' : ''}.` });
     }
     if (comps.gpu.sinkBottom > shroudTop(config)) {
       issues.push({ level: 'error', text: 'GPU cooler collides with the PSU shroud. Reduce slot thickness or remove the shroud.' });
     }
-    const cooler = AF.data.CPU_COOLERS[config.cpu.cooler];
-    const coolerClearance = c.width - 55;
+    const cooler = AF.catalog.cpuCooler(config);
+    const coolerClearance = c.maxCooler || c.width - 55;
     if (cooler.type !== 'aio' && cooler.height > coolerClearance) {
-      issues.push({ level: 'error', text: `CPU cooler (${cooler.height} mm tall) exceeds the ~${coolerClearance} mm side clearance.` });
+      issues.push({ level: 'error', text: `CPU cooler (${cooler.height} mm tall) exceeds the case's ${c.maxCooler ? '' : '~'}${coolerClearance} mm cooler clearance.` });
+    }
+    const boardSocket = c.motherboard && c.motherboard.socket;
+    if (boardSocket && config.cpu.socket && boardSocket !== config.cpu.socket) {
+      issues.push({ level: 'error', text: `Incompatible: the CPU uses ${config.cpu.socket} but the motherboard has an ${boardSocket} socket.` });
     }
     const m = comps.mobo;
     if (m.x + m.w > c.depth - (frontUsed ? P.fanThickness : 0)) {

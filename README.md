@@ -8,6 +8,19 @@ Open `index.html` in a browser (no build step, no server, no dependencies).
 
 Tests: `node tests/run-tests.js`
 
+## Component catalog
+
+Pick real parts instead of typing dimensions. Every picker has a search box, and the raw numbers stay editable under "details".
+
+- **Cases** (13): Corsair 3000D/4000D/5000D Airflow, Lian Li Lancool 216 / Lancool III / O11 Dynamic EVO, Fractal North / Meshify 2 Compact / Pop Air, Montech AIR 903 MAX, Phanteks G360A, be quiet! Pure Base 500DX, Cooler Master NR200P. Each fills in its dimensions, panel types, fan-size support per panel, max GPU length, max cooler height and **bundled fans**.
+- **Motherboards** (30): AM5, AM4, LGA1700, LGA1851 boards from ASUS, MSI, Gigabyte and ASRock, in ATX, E-ATX, mATX and ITX. Each sets its socket, size and slot layout. The layout is typical for the form factor; adjust it if your manual differs.
+- **CPUs** (34): Ryzen 5000/7000/9000 and Intel 12th–14th gen / Core Ultra 200S, with full-load and gaming power, Tjmax and die resistance.
+- **CPU coolers** (36): Noctua, Thermalright, DeepCool, be quiet!, Arctic, Scythe and Cooler Master air coolers, low-profile and stock coolers, and AIOs (Arctic LF III, NZXT Kraken, Corsair H100i/H150i, Lian Li Galahad II, DeepCool LT720, be quiet! Pure Loop 2). Choosing one sets its height, fin stack, bundled fans and relative performance. AIOs mount their radiator with their bundled fans.
+- **GPUs** (41): RTX 30/40/50 (Founders Edition and partner cards), Radeon RX 6000/7000/9000, Intel Arc, and workstation blower cards, with length, slot thickness, board power, fan count and flow-through design.
+- **Fans** (42): case and cooler fans from spec sheets. Values marked ≈ are approximate (mostly bundled fans without published curves).
+- **Checks**: CPU vs motherboard socket, GPU length vs the case limit (minus a front radiator), cooler height vs the case limit, and fan count vs what each panel supports.
+- **Workload**: full load or gaming sets CPU and GPU power from the selected parts.
+
 ## What you can configure
 
 - **Case**: height/depth/width, PSU shroud, vented PCIe covers, number of front fan mounts (1–3, limited by case height). The shroud stops short of the front fans, so a bottom front fan feeds the main chamber. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.
