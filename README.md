@@ -62,6 +62,10 @@ Pick real parts instead of typing dimensions. Every picker has a search box, and
 - **Checks**: CPU vs motherboard socket, GPU length vs the case limit (minus a front radiator), cooler height vs the case limit, and fan count vs what each panel supports.
 - **Workload**: full load or gaming sets CPU and GPU power from the selected parts.
 
+## Quick setup
+
+The first menu, **Quick setup**, puts every main part on one screen as a single dropdown each: case, motherboard, CPU, CPU cooler and graphics card, plus workload and room temperature. Each row has an **›** button (tooltip "Advanced") that opens that part's detailed menu. The dashed arrow button in the side rail shows or hides all the advanced menus.
+
 ## What you can configure
 
 - **Case**: height/depth/width, PSU shroud, vented PCIe covers, number of front fan mounts (1–3, limited by case height). The shroud stops short of the front fans, so a bottom front fan feeds the main chamber. Each panel (front, top, rear, bottom, side) has a type (mesh, perforated, glass with side gaps, sealed) and a fan size.

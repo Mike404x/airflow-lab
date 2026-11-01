@@ -108,6 +108,9 @@
     left: '<path d="m15 6-6 6 6 6"/>',
     right: '<path d="m9 6 6 6-6 6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    bolt: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+    up: '<path d="m6 15 6-6 6 6"/>',
     waves: '<path d="M3 7.5c2.5-2.6 5.5-2.6 8 0s5.5 2.6 8 0M3 12.5c2.5-2.6 5.5-2.6 8 0s5.5 2.6 8 0M3 17.5c2.5-2.6 5.5-2.6 8 0s5.5 2.6 8 0"/>',
     layers: '<path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8z"/><path d="m3.5 12 8.5 4.5 8.5-4.5"/><path d="m3.5 16 8.5 4.5 8.5-4.5"/>',
     eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -136,6 +139,7 @@
   }
 
   const SECTIONS = [
+    { title: 'Quick setup', id: 'quick', icon: 'bolt', short: 'Quick' },
     { title: 'Case', id: 'case', icon: 'case', short: 'Case' },
     { title: 'Motherboard', id: 'board', icon: 'board', short: 'Board' },
     { title: 'Processor', id: 'cpu', icon: 'cpu', short: 'CPU' },
@@ -154,6 +158,7 @@
   function sectionSubtitle(id, config) {
     const C = AF.catalog;
     const name = (list, key) => { const e = C.byId(list, key); return e ? e.name : null; };
+    if (id === 'quick') return 'Pick your parts in one place';
     if (id === 'case') return config.case.name;
     if (id === 'board') return name(C.BOARDS, (config.case.motherboard || {}).product) || 'Generic board';
     if (id === 'cpu') return name(C.CPUS, config.cpu.model) || 'Custom CPU';
@@ -165,7 +170,8 @@
   function renderSidebar(rootEl, app, sections) {
     const st = app.state;
     const rail = document.getElementById('rail');
-    const active = SECTIONS.find((s) => s.id === st.panel) ? st.panel : 'case';
+    const active = SECTIONS.find((s) => s.id === st.panel) ? st.panel : 'quick';
+    if (active !== 'quick') st.showAdvanced = true;
     const issueFor = new Set();
     for (const issue of st.layout.issues) {
       if (issue.level !== 'error') continue;
@@ -173,11 +179,22 @@
       issueFor.add(hit ? hit[1] : 'case');
     }
     if (rail) {
-      rail.replaceChildren(...SECTIONS.map((meta) => h('button', {
+      const item = (meta) => h('button', {
         class: `rail-item ${meta.id === active ? 'active' : ''}`,
         title: `${meta.title}: ${sectionSubtitle(meta.id, st.config)}`,
         onclick: () => { st.panel = meta.id; buildConfigPanel(rootEl, app); },
-      }, icon(meta.icon), meta.short, issueFor.has(meta.id) ? h('span', { class: 'dot' }) : null)));
+      }, icon(meta.icon), meta.short, issueFor.has(meta.id) ? h('span', { class: 'dot' }) : null);
+      const advancedIssues = SECTIONS.slice(1).some((m) => issueFor.has(m.id));
+      const toggle = h('button', {
+        class: `rail-toggle ${st.showAdvanced ? 'open' : ''}`,
+        'data-tip': st.showAdvanced ? 'Hide advanced' : 'Advanced',
+        onclick: () => {
+          st.showAdvanced = !st.showAdvanced;
+          if (!st.showAdvanced) st.panel = 'quick';
+          buildConfigPanel(rootEl, app);
+        },
+      }, icon(st.showAdvanced ? 'up' : 'down'), !st.showAdvanced && advancedIssues ? h('span', { class: 'dot' }) : null);
+      rail.replaceChildren(item(SECTIONS[0]), toggle, ...(st.showAdvanced ? SECTIONS.slice(1).map(item) : []));
     }
     const index = SECTIONS.findIndex((s) => s.id === active);
     const meta = SECTIONS[index];
@@ -191,7 +208,7 @@
         ...(sec ? sec.children : []),
         h('div', { class: 'step-nav' },
           index > 0 ? h('button', { class: 'btn', onclick: () => go(index - 1) }, icon('left'), SECTIONS[index - 1].short) : null,
-          index < SECTIONS.length - 1 ? h('button', { class: 'btn primary', onclick: () => go(index + 1) }, `Next: ${SECTIONS[index + 1].short}`, icon('right')) : null)));
+          index > 0 && index < SECTIONS.length - 1 ? h('button', { class: 'btn primary', onclick: () => go(index + 1) }, `Next: ${SECTIONS[index + 1].short}`, icon('right')) : null)));
   }
 
   function section(title, open, ...children) {
@@ -284,6 +301,76 @@
     return h('div', { class: 'summary' }, parts.map((p) => h('span', { class: `pill ${p.startsWith('≈') || p.includes('approximate') ? 'warn' : ''}` }, p)));
   }
 
+  function quickSetup(config, app) {
+    const C = AF.catalog;
+    const update = (fn) => app.update(fn);
+    const advanced = (id) => {
+      app.state.panel = id;
+      app.state.showAdvanced = true;
+      buildConfigPanel(document.getElementById('configPanel'), app);
+    };
+    const pickerSelect = (groups, value, customLabel, onChange) => {
+      const known = groups.some((g) => g.options.some((o) => o.value === value));
+      const sel = h('select', { onchange: (e) => onChange(e.target.value) });
+      if (customLabel) {
+        const opt = h('option', { value: CUSTOM }, customLabel);
+        if (!known) opt.selected = true;
+        sel.append(opt);
+      }
+      for (const g of groups) {
+        const og = h('optgroup', { label: g.label });
+        for (const o of g.options) {
+          const opt = h('option', { value: o.value }, o.label);
+          if (o.value === value) opt.selected = true;
+          og.append(opt);
+        }
+        sel.append(og);
+      }
+      return sel;
+    };
+    const row = (iconName, label, sectionId, control, sub) => h('div', { class: 'quick-row' },
+      h('div', { class: 'quick-head' },
+        h('span', { class: 'quick-icon' }, icon(iconName)),
+        h('span', { class: 'quick-label' }, label),
+        sectionId ? h('button', { class: 'quick-adv', 'data-tip': 'Advanced', onclick: () => advanced(sectionId) }, icon('right')) : null),
+      control,
+      sub ? h('div', { class: 'quick-sub' }, sub) : null);
+
+    const c = config.case;
+    const board = AF.geometry.motherboardOf(config);
+    const boardEntry = C.boardOf(config);
+    const cpuEntry = C.byId(C.CPUS, config.cpu.model);
+    const cooler = C.cpuCooler(config);
+    const gpu = config.gpu;
+    const gpuEntry = C.byId(C.GPUS, gpu.model);
+    return [
+      row('case', 'Case', 'case', pickerSelect(C.categorize('case', C.CASES), c.model, 'Custom / generic case', (v) => {
+        if (v !== CUSTOM) update((cfg) => C.applyCase(cfg, v));
+      }), `${c.depth} × ${c.width} × ${c.height} mm`),
+      row('board', 'Motherboard', 'board', pickerSelect(C.categorize('board', C.BOARDS), board.product, 'Generic board', (v) => update((cfg) => {
+        if (v === CUSTOM) cfg.case.motherboard = Object.assign({}, AF.geometry.motherboardOf(cfg), { product: null, socket: null });
+        else C.applyBoard(cfg, v);
+      })), boardEntry ? `${boardEntry.socket} · GPU in slot ${board.x16Slot}` : `${board.width} × ${board.height} mm`),
+      row('cpu', 'Processor', 'cpu', pickerSelect(C.categorize('cpu', C.CPUS), config.cpu.model, 'Custom CPU', (v) => update((cfg) => {
+        if (v === CUSTOM) { cfg.cpu.model = 'custom'; cfg.cpu.socket = null; } else C.applyCpu(cfg, v);
+      })), `${cpuEntry ? `${cpuEntry.socket} · ` : ''}${config.cpu.power} W`),
+      row('fan', 'CPU cooler', 'cooler', pickerSelect(C.categorize('cooler', C.COOLERS), config.cpu.coolerModel || `generic-${config.cpu.cooler}`, null, (v) => update((cfg) => C.applyCooler(cfg, v))),
+        cooler.type === 'aio' ? `${config.cpu.aio.fans * c.panels[config.cpu.aio.panel].fanSize} mm radiator · ${config.cpu.aio.panel}` : `${cooler.height} mm tall`),
+      row('gpu', 'Graphics card', 'gpu', pickerSelect(C.categorize('gpu', C.GPUS), gpu.model, 'Custom GPU', (v) => update((cfg) => {
+        if (v === CUSTOM) cfg.gpu.model = 'custom'; else C.applyGpu(cfg, v);
+      })), `${gpu.length} mm · ${gpu.slots} slot · ${gpu.power} W${gpuEntry ? '' : ' · custom'}`),
+      row('sliders', 'Workload & room', 'env', h('div', { class: 'grid2' },
+        select([{ value: 'stress', label: 'Full load' }, { value: 'gaming', label: 'Gaming' }], config.workload || 'stress', (v) => update((cfg) => {
+          cfg.workload = v;
+          if (C.byId(C.CPUS, cfg.cpu.model)) C.applyCpu(cfg, cfg.cpu.model);
+          const g = C.byId(C.GPUS, cfg.gpu.model);
+          if (g) cfg.gpu.power = C.gpuPower(g, v);
+        })),
+        h('div', { class: 'quick-temp' }, number(config.ambient, 5, 45, 0.5, (v) => update((cfg) => { cfg.ambient = v; })), h('span', {}, '°C')))),
+      h('div', { class: 'hint' }, 'Use the arrows for the advanced settings of each part: dimensions, fans, panels, layout and thermal details.'),
+    ];
+  }
+
   function buildConfigPanel(rootEl, app) {
     const config = app.state.config;
     const D = AF.data;
@@ -291,6 +378,7 @@
     const update = (fn) => app.update(fn);
     const live = (fn) => app.update(fn, { live: true });
     const sections = [];
+    sections.push(section('Quick setup', true, ...quickSetup(config, app)));
 
     const c = config.case;
     const caseEntry = C.byId(C.CASES, c.model);
