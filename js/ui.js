@@ -219,18 +219,146 @@
     return AF.catalog.fanGroups(size).concat([{ label: 'Custom', options: [{ value: 'custom', label: 'Custom fan…' }] }]);
   }
 
-  function groupedSelect(groups, value, onChange) {
-    const el = h('select', { onchange: (e) => onChange(e.target.value) });
-    for (const g of groups) {
-      const og = h('optgroup', { label: g.label });
-      for (const o of g.options) {
-        const opt = h('option', { value: o.value }, o.label);
-        if (String(o.value) === String(value)) opt.selected = true;
-        og.append(opt);
+  let openCombo = null;
+
+  function closeCombo() {
+    if (!openCombo) return;
+    const { panel, cleanup } = openCombo;
+    openCombo = null;
+    cleanup();
+    panel.remove();
+  }
+
+  function comboLabel(groups, value, customLabel) {
+    for (const g of groups) for (const o of g.options) if (String(o.value) === String(value)) return o.label;
+    return customLabel || 'Select…';
+  }
+
+  function showCombo(button, groups, value, onChange, opts) {
+    closeCombo();
+    const brandCounts = new Map();
+    for (const g of groups) for (const o of g.options) if (o.brand) brandCounts.set(o.brand, (brandCounts.get(o.brand) || 0) + 1);
+    const brands = Array.from(brandCounts.keys()).sort((x, y) => (x === 'Generic') - (y === 'Generic') || x.localeCompare(y));
+    const search = h('input', { type: 'search', class: 'combo-search', placeholder: opts.placeholder || 'Search…', autocomplete: 'off', spellcheck: 'false' });
+    const brandSel = brands.length > 1 ? h('select', { class: 'combo-brand', title: 'Filter by manufacturer' },
+      h('option', { value: '' }, 'All brands'),
+      brands.map((b) => h('option', { value: b }, `${b} (${brandCounts.get(b)})`))) : null;
+    const list = h('div', { class: 'combo-list', role: 'listbox' });
+    const count = h('div', { class: 'combo-count' });
+    const panel = h('div', { class: 'combo-panel' },
+      h('div', { class: `combo-filters ${brandSel ? 'with-brand' : ''}` }, search, brandSel),
+      list, count);
+    let items = [];
+    let active = -1;
+
+    const choose = (v) => {
+      closeCombo();
+      button.focus();
+      if (String(v) !== String(value)) onChange(v);
+    };
+    const highlight = (k, scroll) => {
+      items.forEach((el, i) => el.classList.toggle('active', i === k));
+      active = k;
+      if (scroll && items[k]) items[k].scrollIntoView({ block: 'nearest' });
+    };
+    const render = () => {
+      list.replaceChildren();
+      items = [];
+      const needle = search.value.trim().toLowerCase();
+      const brand = brandSel ? brandSel.value : '';
+      const words = needle.split(/\s+/).filter(Boolean);
+      const option = (v, label, sub) => {
+        const el = h('div', { class: `combo-item ${String(v) === String(value) ? 'selected' : ''}`, role: 'option', 'data-value': v },
+          h('span', { class: 'combo-item-label' }, label), sub ? h('span', { class: 'combo-item-sub' }, sub) : null);
+        el.addEventListener('mousedown', (e) => e.preventDefault());
+        el.addEventListener('click', () => choose(v));
+        el.addEventListener('mousemove', () => highlight(items.indexOf(el), false));
+        items.push(el);
+        return el;
+      };
+      if (opts.customLabel && !needle && !brand) list.append(option(CUSTOM, opts.customLabel));
+      let total = 0;
+      for (const g of groups) {
+        const matches = g.options.filter((o) => (!brand || o.brand === brand)
+          && words.every((w) => `${g.label} ${o.brand || ''} ${o.label}`.toLowerCase().includes(w)));
+        if (!matches.length) continue;
+        total += matches.length;
+        list.append(h('div', { class: 'combo-group' }, g.label, h('span', {}, matches.length)));
+        for (const o of matches) list.append(option(o.value, o.label));
       }
-      el.append(og);
-    }
-    return el;
+      if (!items.length) list.append(h('div', { class: 'combo-empty' }, 'No matches. Try another word or brand.'));
+      count.textContent = needle || brand ? `${total} match${total === 1 ? '' : 'es'}` : `${total} options · ↑ ↓ to move, Enter to pick, Esc to close`;
+      const selected = items.findIndex((el) => el.dataset.value === String(value));
+      highlight(needle || brand ? 0 : Math.max(0, selected), true);
+    };
+
+    const place = () => {
+      const r = button.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const width = Math.min(Math.max(r.width, 320), vw - 16);
+      const left = Math.max(8, Math.min(r.left, vw - width - 8));
+      const below = vh - r.bottom - 10;
+      const above = r.top - 10;
+      const up = below < 300 && above > below;
+      const maxH = Math.min(460, up ? above : below);
+      panel.style.left = `${left}px`;
+      panel.style.width = `${width}px`;
+      panel.style.maxHeight = `${maxH}px`;
+      panel.style.top = up ? 'auto' : `${r.bottom + 6}px`;
+      panel.style.bottom = up ? `${vh - r.top + 6}px` : 'auto';
+    };
+
+    search.addEventListener('input', render);
+    if (brandSel) brandSel.addEventListener('change', () => { render(); search.focus(); });
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); highlight(Math.min(items.length - 1, active + 1), true); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(Math.max(0, active - 1), true); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (items[active]) choose(items[active].dataset.value); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeCombo(); button.focus(); }
+    });
+    const outside = (e) => { if (!panel.contains(e.target) && !button.contains(e.target)) closeCombo(); };
+    const onScroll = (e) => { if (!panel.contains(e.target)) closeCombo(); };
+    document.addEventListener('pointerdown', outside, true);
+    window.addEventListener('resize', closeCombo);
+    window.addEventListener('scroll', onScroll, true);
+    openCombo = {
+      panel,
+      button,
+      cleanup: () => {
+        document.removeEventListener('pointerdown', outside, true);
+        window.removeEventListener('resize', closeCombo);
+        window.removeEventListener('scroll', onScroll, true);
+        button.classList.remove('open');
+      },
+    };
+    document.body.append(panel);
+    button.classList.add('open');
+    render();
+    place();
+    search.focus({ preventScroll: true });
+  }
+
+  function combo(groups, value, onChange, opts) {
+    const options = opts || {};
+    const button = h('button', { type: 'button', class: 'combo', 'aria-haspopup': 'listbox' },
+      h('span', { class: 'combo-value' }, comboLabel(groups, value, options.customLabel)), icon('down'));
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (openCombo && openCombo.button === button) { closeCombo(); return; }
+      showCombo(button, groups, value, onChange, options);
+    });
+    button.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        showCombo(button, groups, value, onChange, options);
+      }
+    });
+    return button;
+  }
+
+  function groupedSelect(groups, value, onChange) {
+    return combo(groups, value, onChange, { placeholder: 'Search fans…' });
   }
 
   function customFanFields(custom, onChange) {
@@ -246,50 +374,7 @@
   const CUSTOM = '__custom';
 
   function picker(groups, value, onChange, customLabel) {
-    const sel = h('select', { onchange: (e) => { if (e.target.value) onChange(e.target.value); } });
-    const search = h('input', { type: 'search', class: 'picker-search', placeholder: 'Search…' });
-    const known = groups.some((g) => g.options.some((o) => o.value === value));
-    const brandCounts = new Map();
-    for (const g of groups) for (const o of g.options) if (o.brand) brandCounts.set(o.brand, (brandCounts.get(o.brand) || 0) + 1);
-    const brands = Array.from(brandCounts.keys()).sort((x, y) => (x === 'Generic') - (y === 'Generic') || x.localeCompare(y));
-    const brandSel = brands.length > 1 ? h('select', { class: 'picker-brand', title: 'Filter by manufacturer' },
-      h('option', { value: '' }, 'All brands'),
-      brands.map((b) => h('option', { value: b }, `${b} (${brandCounts.get(b)})`))) : null;
-    const fill = () => {
-      sel.replaceChildren();
-      const needle = search.value.trim().toLowerCase();
-      const brand = brandSel ? brandSel.value : '';
-      const filtering = needle || brand;
-      const matches = groups.map((g) => ({
-        label: g.label,
-        options: g.options.filter((o) => (!brand || o.brand === brand) && (!needle || `${g.label} ${o.brand || ''} ${o.label}`.toLowerCase().includes(needle))),
-      })).filter((g) => g.options.length);
-      if (filtering) {
-        const count = matches.reduce((n, g) => n + g.options.length, 0);
-        const current = matches.some((g) => g.options.some((o) => o.value === value));
-        const hintOpt = h('option', { value: '', disabled: true }, count ? `${count} match${count > 1 ? 'es' : ''}, choose one…` : 'No matches');
-        if (!current) hintOpt.selected = true;
-        sel.append(hintOpt);
-      }
-      if (customLabel && !filtering) {
-        const opt = h('option', { value: CUSTOM }, customLabel);
-        if (!known) opt.selected = true;
-        sel.append(opt);
-      }
-      for (const g of matches) {
-        const og = h('optgroup', { label: g.label });
-        for (const o of g.options) {
-          const opt = h('option', { value: o.value }, o.label);
-          if (o.value === value) opt.selected = true;
-          og.append(opt);
-        }
-        sel.append(og);
-      }
-    };
-    search.addEventListener('input', fill);
-    if (brandSel) brandSel.addEventListener('change', fill);
-    fill();
-    return h('div', { class: 'picker' }, h('div', { class: `picker-filters ${brandSel ? 'with-brand' : ''}` }, search, brandSel), sel);
+    return h('div', { class: 'picker' }, combo(groups, value, (v) => { if (v) onChange(v); }, { customLabel }));
   }
 
   function details(title, open, ...children) {
@@ -309,25 +394,7 @@
       app.state.showAdvanced = true;
       buildConfigPanel(document.getElementById('configPanel'), app);
     };
-    const pickerSelect = (groups, value, customLabel, onChange) => {
-      const known = groups.some((g) => g.options.some((o) => o.value === value));
-      const sel = h('select', { onchange: (e) => onChange(e.target.value) });
-      if (customLabel) {
-        const opt = h('option', { value: CUSTOM }, customLabel);
-        if (!known) opt.selected = true;
-        sel.append(opt);
-      }
-      for (const g of groups) {
-        const og = h('optgroup', { label: g.label });
-        for (const o of g.options) {
-          const opt = h('option', { value: o.value }, o.label);
-          if (o.value === value) opt.selected = true;
-          og.append(opt);
-        }
-        sel.append(og);
-      }
-      return sel;
-    };
+    const pickerSelect = (groups, value, customLabel, onChange) => combo(groups, value, onChange, { customLabel });
     const row = (iconName, label, sectionId, control, sub) => h('div', { class: 'quick-row' },
       h('div', { class: 'quick-head' },
         h('span', { class: 'quick-icon' }, icon(iconName)),
@@ -372,6 +439,7 @@
   }
 
   function buildConfigPanel(rootEl, app) {
+    closeCombo();
     const config = app.state.config;
     const D = AF.data;
     const C = AF.catalog;
