@@ -3,6 +3,7 @@ const AF = require(path.join(__dirname, '..', 'js', 'data.js'));
 require(path.join(__dirname, '..', 'js', 'catalog.js'));
 require(path.join(__dirname, '..', 'js', 'catalog-more.js'));
 require(path.join(__dirname, '..', 'js', 'catalog-2015.js'));
+require(path.join(__dirname, '..', 'js', 'catalog-gpus.js'));
 require(path.join(__dirname, '..', 'js', 'geometry.js'));
 require(path.join(__dirname, '..', 'js', 'physics.js'));
 require(path.join(__dirname, '..', 'js', 'cfd.js'));

@@ -543,7 +543,7 @@
   const BRANDS = [
     'Cooler Master', 'be quiet!', 'Lian Li', 'Noctua', 'Arctic', 'Corsair', 'Thermalright', 'DeepCool', 'Fractal', 'Phanteks',
     'Montech', 'Scythe', 'NZXT', 'SilverStone', 'Thermaltake', 'Antec', 'HYTE', 'ASUS', 'Gigabyte', 'MSI', 'Zotac', 'EVGA',
-    'ASRock', 'PowerColor', 'Sapphire', 'XFX', 'PNY', 'AMD', 'Intel', 'NVIDIA', 'Jonsbo', 'Zalman', 'ID-COOLING', 'Gelid', 'Generic',
+    'ASRock', 'PowerColor', 'Sapphire', 'XFX', 'PNY', 'Palit', 'Gainward', 'Inno3D', 'AMD', 'Intel', 'NVIDIA', 'Jonsbo', 'Zalman', 'ID-COOLING', 'Gelid', 'Generic',
   ];
   const BRAND_ALIASES = [[/^EK-/, 'EK'], [/^RTX /, 'NVIDIA'], [/^RX /, 'AMD'], [/^Arc /, 'Intel'], [/^Ryzen /, 'AMD'], [/^Core /, 'Intel']];
 
@@ -557,7 +557,7 @@
 
   const CATEGORY_ORDER = {
     cpu: ['AMD Ryzen 9000 · AM5', 'AMD Ryzen 7000 · AM5', 'AMD Ryzen 5000 · AM4', 'Intel Core Ultra 200S · LGA1851', 'Intel Core 12th–14th gen · LGA1700'],
-    gpu: ['NVIDIA GeForce RTX 50 series', 'NVIDIA GeForce RTX 40 series', 'NVIDIA GeForce RTX 30 series', 'AMD Radeon RX 9000 series', 'AMD Radeon RX 7000 series', 'AMD Radeon RX 6000 series', 'Intel Arc', 'Workstation (blower)'],
+    gpu: ['NVIDIA GeForce RTX 50 series', 'NVIDIA GeForce RTX 40 series', 'NVIDIA GeForce RTX 30 series', 'NVIDIA GeForce RTX 20 series', 'AMD Radeon RX 9000 series', 'AMD Radeon RX 7000 series', 'AMD Radeon RX 6000 series', 'Intel Arc', 'Workstation (blower)'],
     cooler: ['Generic', 'Dual-tower air', 'Single-tower air', 'AIO liquid 420 mm', 'AIO liquid 360 mm', 'AIO liquid 280 mm', 'AIO liquid 240 mm', 'AIO liquid 120 mm', 'Low-profile air', 'Stock coolers'],
     case: ['Mid tower', 'Full tower', 'Dual chamber', 'Micro-ATX', 'Mini-ITX'],
     board: ['AMD AM5', 'AMD AM4', 'Intel LGA1851', 'Intel LGA1700'],
@@ -574,6 +574,7 @@
       if (rtx) return `NVIDIA GeForce RTX ${rtx[1]}0 series`;
       const rx = item.name.match(/RX (\d)\d{3}/);
       if (rx) return `AMD Radeon RX ${rx[1]}000 series`;
+      if (/TITAN RTX/i.test(item.name)) return 'NVIDIA GeForce RTX 20 series';
       if (/Arc/.test(item.name)) return 'Intel Arc';
       return item.group;
     }
