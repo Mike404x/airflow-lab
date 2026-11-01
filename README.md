@@ -41,13 +41,23 @@ Tapping a fan, the CPU cooler or the GPU in the view opens its settings. The 3D 
 
 ## 3D view
 
-The **2D / 3D** switch above the simulation turns the view into an interactive 3D model built from the same geometry. It shows the case panels, the glass side panel, the motherboard with RAM and slots, the CPU cooler (fin stacks, fans, AIO pump, tubes and radiators), the graphics card, the PSU shroud, and every case fan and extra fan with spinning blades and flow arrows. It also shows the live CFD heat map as a slice through the case and the airflow particles as streaks.
+The **2D / 3D** switch turns the view into an interactive, realistic 3D model built from the same geometry:
+- **Chassis:** matte black, with real hole patterns on mesh and perforated panels.
+- **Motherboard:** VRM heatsinks, RAM and PCIe slots.
+- **CPU cooler:** a fin-stack tower with heatpipes and brand-coloured fans (Noctua beige/brown, RGB, black). For an AIO: pump, tubes and finned radiators.
+- **GPU:** heatsink, shroud, backplate and bracket.
+- **PSU** in the basement, plus cables.
+- **Fans:** realistic case fans with a coloured ring showing intake (blue) or exhaust (orange).
+- **Scene:** a ground grid with soft shadows, and part labels.
 
-- Drag to orbit, scroll to zoom, right-drag to pan.
-- **Click any part to make it transparent**, and click it again to make it solid. Clicks pass through see-through panels such as glass and mesh.
-- The **render options** button (layers icon) toggles each layer, makes everything solid again, and resets the camera.
+By default it is a **cutaway**: the side glass is removed. **Exterior** puts the side panels back.
 
-The 3D view uses three.js r147 (MIT license), vendored in `vendor/three/` so the app still works offline straight from disk. The CFD is still the 2D side-view simulation; the 3D view displays it, it does not add a third dimension to the physics.
+- **Camera presets:** 3D, Side, Top, Front, Rear. Drag to orbit, scroll or pinch to zoom, right-drag to pan.
+- **Click any part to make it transparent**, and click it again to make it solid.
+- **Render options** (layers icon) toggle every layer: frame, exterior, motherboard, cooler, GPU, PSU, cables, fans, flow arrows, particles, heat-map slice, labels and fan spin.
+- Live CFD particles stream through the model as glowing airflow streaks.
+
+The 3D view uses three.js r147 (MIT license), vendored in `vendor/three/`. The CFD is still the 2D side-view simulation; the 3D view displays it, it does not add a third dimension to the physics.
 
 ## Component catalog
 

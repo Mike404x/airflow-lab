@@ -588,3 +588,25 @@ td.mode { font-size: 11px; }
   .brand-name { display: none; }
   .kpi { min-width: 108px; }
 }
+
+.float.top-center { top: 58px; left: 12px; }
+.view3d-only { display: none !important; }
+.viewport.is-3d .view3d-only { display: flex !important; }
+.viewport.is-3d .float.bottom-left .legend-keys { display: none; }
+.cam-seg .seg { height: 30px; padding: 0 12px; font-weight: 600; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+.cam-seg .seg.active { background: var(--accent-strong); color: white; }
+.labels3d { position: absolute; inset: 0; pointer-events: none; overflow: hidden; display: none; z-index: 2; }
+.label3d {
+  position: absolute; left: 0; top: 0; margin-top: -11px;
+  padding: 3px 8px 3px 9px; border-left: 3px solid var(--cyan); border-radius: 2px;
+  background: rgba(7, 9, 13, 0.82); color: #eef2f7;
+  font: 600 10.5px/1.25 "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+}
+.label3d.ground { background: none; border: 0; color: var(--muted); font-weight: 500; padding: 0; margin-left: -18px; }
+
+@media (max-width: 900px) {
+  .float.top-center { top: auto; bottom: 52px; left: 8px; transform: none; }
+  .cam-seg .seg { padding: 0 8px; font-size: 10.5px; }
+  #btnExterior { height: 32px; padding: 0 9px; }
+}

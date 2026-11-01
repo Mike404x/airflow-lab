@@ -156,6 +156,18 @@
       document.getElementById('btnAddFan').addEventListener('click', () => this.addCustomFan());
       document.querySelectorAll('#mobileNav .mnav').forEach((b) => b.addEventListener('click', () => this.setMobileView(b.dataset.mview)));
       document.getElementById('btn2d').addEventListener('click', () => this.setMode3d(false));
+      document.querySelectorAll('#camPresets .seg').forEach((b) => b.addEventListener('click', () => {
+        if (!this.view3d) return;
+        this.view3d.setCamera(b.dataset.cam);
+        document.querySelectorAll('#camPresets .seg').forEach((x) => x.classList.toggle('active', x === b));
+      }));
+      const exterior = document.getElementById('btnExterior');
+      exterior.addEventListener('click', () => {
+        if (!this.view3d) return;
+        const on = !this.view3d.options.glass;
+        this.view3d.setOption('glass', on);
+        exterior.classList.toggle('active', on);
+      });
       document.getElementById('btn3d').addEventListener('click', () => this.setMode3d(true));
       const layersBtn = document.getElementById('btnLayers');
       const popover = document.getElementById('layersPopover');
